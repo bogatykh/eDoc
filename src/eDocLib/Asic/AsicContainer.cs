@@ -10,11 +10,20 @@ namespace eDocLib.Asic
     {
         public const string MimeType = "application/vnd.etsi.asic-e+zip";
 
+        internal const string MimeTypeFileName = "mimetype";
+        internal const string MetaFolderName = "META-INF";
+        internal const string ManifestFileName = "manifest.xml";
+
         private readonly List<DataFile> _dataFiles = new List<DataFile>();
         private readonly List<AsicSignature> _signatures = new List<AsicSignature>();
 
         protected AsicContainer()
         {
+        }
+
+        protected AsicContainer(Stream stream)
+        {
+            Load(stream);
         }
 
         public IReadOnlyCollection<DataFile> DataFiles => _dataFiles.AsReadOnly();
@@ -33,6 +42,14 @@ namespace eDocLib.Asic
         internal void AddDataFile(DataFile dataFile)
         {
             _dataFiles.Add(dataFile);
+        }
+
+        private void Load(Stream stream)
+        {
+            using (var reader = new AsicContainerReader(stream))
+            {
+                reader.Read();
+            }
         }
 
         public void Save(Stream stream)

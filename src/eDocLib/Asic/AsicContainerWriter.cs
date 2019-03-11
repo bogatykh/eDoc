@@ -52,13 +52,13 @@ namespace eDocLib.Asic
                 manifest.Add(dataFile.Name, dataFile.MimeType);
             }
 
-            var entry = new ZipEntry(Path.Combine(MetaFolderName, ManifestFileName));
+            var entry = new ZipEntry($"{MetaFolderName}/{ManifestFileName}");
 
             _zipOutputStream.PutNextEntry(entry);
-            
-                manifest
-                    .Generate()
-                    .Save(_zipOutputStream);
+
+            manifest
+                .Generate()
+                .Save(_zipOutputStream);
 
             _zipOutputStream.CloseEntry();
         }
@@ -83,7 +83,7 @@ namespace eDocLib.Asic
 
             foreach (var signature in signatures)
             {
-                var entry = new ZipEntry(Path.Combine(MetaFolderName, CreateSignatureFileName(signature, index)));
+                var entry = new ZipEntry($"{MetaFolderName}/{CreateSignatureFileName(signature, index)}");
 
                 _zipOutputStream.PutNextEntry(entry);
 
