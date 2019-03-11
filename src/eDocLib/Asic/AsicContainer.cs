@@ -11,12 +11,15 @@ namespace eDocLib.Asic
         public const string MimeType = "application/vnd.etsi.asic-e+zip";
 
         private readonly List<DataFile> _dataFiles = new List<DataFile>();
+        private readonly List<AsicSignature> _signatures = new List<AsicSignature>();
 
         protected AsicContainer()
         {
         }
 
         public IReadOnlyCollection<DataFile> DataFiles => _dataFiles.AsReadOnly();
+
+        public IReadOnlyCollection<ISignature> Signatures => _signatures.AsReadOnly();
 
         public DataFile AddDataFile(Stream stream, string name, string mimeType)
         {
@@ -38,6 +41,7 @@ namespace eDocLib.Asic
             {
                 writer.WriteMimeType();
                 writer.WriteManifest(_dataFiles);
+                writer.WriteSignatures(_signatures);
                 writer.WriteDataFiles(_dataFiles);
             }
         }

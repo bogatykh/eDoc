@@ -77,6 +77,27 @@ namespace eDocLib.Asic
             }
         }
 
+        public void WriteSignatures(IEnumerable<ISignature> signatures)
+        {
+            int index = 0;
+
+            foreach (var signature in signatures)
+            {
+                var entry = new ZipEntry(Path.Combine(MetaFolderName, CreateSignatureFileName(signature, index)));
+
+                _zipOutputStream.PutNextEntry(entry);
+
+                _zipOutputStream.CloseEntry();
+
+                index++;
+            }
+        }
+
+        protected virtual string CreateSignatureFileName(ISignature signature, int index)
+        {
+            return $"signatures" + index + ".xml";
+        }
+
         public void Dispose()
         {
             _zipOutputStream.Dispose();

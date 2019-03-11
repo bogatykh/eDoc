@@ -8,5 +8,7 @@ namespace eDocLib
         IReadOnlyCollection<DataFile> DataFiles { get; }
 
         DataFile AddDataFile(Stream stream, string name, string mimeType);
+
+        IReadOnlyCollection<ISignature> Signatures { get; }
     }
 }
