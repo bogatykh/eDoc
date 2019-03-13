@@ -48,7 +48,9 @@ namespace eDocLib.Asic
         {
             using (var reader = new AsicContainerReader(stream))
             {
-                reader.Read();
+                var result = reader.Read();
+
+                _dataFiles.AddRange(result.DataFiles);
             }
         }
 

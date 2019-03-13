@@ -13,10 +13,6 @@ namespace eDocLib.Asic
     {
         private readonly ZipOutputStream _zipOutputStream;
 
-        private const string MimeTypeFileName = "mimetype";
-        private const string MetaFolderName = "META-INF";
-        private const string ManifestFileName = "manifest.xml";
-
         private readonly static Encoding Encoding = Encoding.UTF8;
 
         public AsicContainerWriter(Stream stream)
@@ -32,7 +28,7 @@ namespace eDocLib.Asic
 
         public void WriteMimeType()
         {
-            var entry = new ZipEntry(MimeTypeFileName);
+            var entry = new ZipEntry(AsicContainer.MimeTypeFileName);
             entry.CompressionMethod = CompressionMethod.Stored;
 
             _zipOutputStream.PutNextEntry(entry);
@@ -52,7 +48,7 @@ namespace eDocLib.Asic
                 manifest.Add(dataFile.Name, dataFile.MimeType);
             }
 
-            var entry = new ZipEntry($"{MetaFolderName}/{ManifestFileName}");
+            var entry = new ZipEntry($"{AsicContainer.MetaFolderName}/{AsicContainer.ManifestFileName}");
 
             _zipOutputStream.PutNextEntry(entry);
 
@@ -83,7 +79,7 @@ namespace eDocLib.Asic
 
             foreach (var signature in signatures)
             {
-                var entry = new ZipEntry($"{MetaFolderName}/{CreateSignatureFileName(signature, index)}");
+                var entry = new ZipEntry($"{AsicContainer.MetaFolderName}/{CreateSignatureFileName(signature, index)}");
 
                 _zipOutputStream.PutNextEntry(entry);
 

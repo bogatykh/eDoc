@@ -1,5 +1,6 @@
 ﻿using ICSharpCode.SharpZipLib.Zip;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Xml.Linq;
@@ -17,6 +18,7 @@ namespace eDocLib.Asic
 
         private string _mimeType;
         private OasisManifest _manifest;
+        private readonly Dictionary<string, DataFile> _dataFiles = new Dictionary<string, DataFile>();
 
         public AsicContainerReader(Stream stream)
         {
@@ -29,10 +31,12 @@ namespace eDocLib.Asic
             _zipInputStream.IsStreamOwner = false;
         }
 
-        public void Read()
+        public AsicReadResult Read()
         {
             ReadEntries();
             Validate();
+
+            return new AsicReadResult(_dataFiles.Values);
         }
 
         private void ReadEntries()
@@ -45,6 +49,8 @@ namespace eDocLib.Asic
 
                 zipEntry = _zipInputStream.GetNextEntry();
             }
+
+            UpdateDataFileMimeTypes();
         }
 
         protected virtual void ReadEntry(ZipEntry entry)
@@ -61,6 +67,10 @@ namespace eDocLib.Asic
             else if (IsManifest(entry.Name))
             {
                 ReadManifest(entry);
+            }
+            else if (IsDataFile(entry.Name))
+            {
+                ReadDataFile(entry);
             }
         }
 
@@ -79,6 +89,43 @@ namespace eDocLib.Asic
             _manifest = new OasisManifest(XElement.Load(_zipInputStream));
         }
 
+        private void ReadDataFile(ZipEntry entry)
+        {
+            if (_dataFiles.ContainsKey(entry.Name))
+            {
+                throw new AsicException($"Duplicate data file: {entry.Name}");
+            }
+
+            var ms = new MemoryStream();
+
+            _zipInputStream.CopyTo(ms);
+            ms.Seek(0, SeekOrigin.Begin);
+
+            _dataFiles.Add(entry.Name, new DataFile(
+                stream: ms,
+                name: entry.Name,
+                mimeType: System.Net.Mime.MediaTypeNames.Application.Octet
+            ));
+        }
+
+        private void UpdateDataFileMimeTypes()
+        {
+            if (_manifest == null)
+            {
+                return;
+            }
+
+            foreach (var dataFile in _dataFiles.Values)
+            {
+                if (!_manifest.Files.ContainsKey(dataFile.Name))
+                {
+                    continue;
+                }
+
+                dataFile.MimeType = _manifest.Files[dataFile.Name];
+            }
+        }
+
         private bool IsMimeType(string fullName)
         {
             return string.Equals(fullName, AsicContainer.MimeTypeFileName, StringComparison.OrdinalIgnoreCase);
@@ -89,11 +136,16 @@ namespace eDocLib.Asic
             return string.Equals(fullName, $"{AsicContainer.MetaFolderName}/{AsicContainer.ManifestFileName}", StringComparison.OrdinalIgnoreCase);
         }
 
+        private bool IsDataFile(string fullName)
+        {
+            return !fullName.StartsWith($"{AsicContainer.MetaFolderName}/", StringComparison.OrdinalIgnoreCase) && !IsMimeType(fullName);
+        }
+
         private void Validate()
         {
             if (!string.Equals(_mimeType, AsicContainer.MimeType, StringComparison.OrdinalIgnoreCase))
             {
-                throw new Exception("Invalid format");
+                throw new AsicException($"Invalid MIME type: {_mimeType}");
             }
         }
 
