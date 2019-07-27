@@ -3,6 +3,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Text.RegularExpressions;
+using System.Xml;
 using System.Xml.Linq;
 
 namespace eDocLib.Asic
@@ -15,10 +17,12 @@ namespace eDocLib.Asic
         private readonly ZipInputStream _zipInputStream;
 
         private readonly static Encoding Encoding = Encoding.UTF8;
+        private readonly static Regex SignatureFileNameRegex = new Regex($"{AsicContainer.MetaFolderName}/(.*)signatures(.*).xml", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
         private string _mimeType;
         private OasisManifest _manifest;
         private readonly Dictionary<string, DataFile> _dataFiles = new Dictionary<string, DataFile>();
+        private readonly List<AsicSignature> _signatures = new List<AsicSignature>();
 
         public AsicContainerReader(Stream stream)
         {
@@ -36,7 +40,7 @@ namespace eDocLib.Asic
             ReadEntries();
             Validate();
 
-            return new AsicReadResult(_dataFiles.Values);
+            return new AsicReadResult(_dataFiles.Values, _signatures.AsReadOnly());
         }
 
         private void ReadEntries()
@@ -71,6 +75,10 @@ namespace eDocLib.Asic
             else if (IsDataFile(entry.Name))
             {
                 ReadDataFile(entry);
+            }
+            else if (IsSignature(entry.Name))
+            {
+                ReadSignature(entry);
             }
         }
 
@@ -108,6 +116,14 @@ namespace eDocLib.Asic
             ));
         }
 
+        private void ReadSignature(ZipEntry entry)
+        {
+            var document = new XmlDocument();
+            document.Load(_zipInputStream);
+
+            _signatures.Add(new AsicSignature(document));
+        }
+
         private void UpdateDataFileMimeTypes()
         {
             if (_manifest == null)
@@ -139,6 +155,11 @@ namespace eDocLib.Asic
         private bool IsDataFile(string fullName)
         {
             return !fullName.StartsWith($"{AsicContainer.MetaFolderName}/", StringComparison.OrdinalIgnoreCase) && !IsMimeType(fullName);
+        }
+
+        private bool IsSignature(string fullName)
+        {
+            return SignatureFileNameRegex.IsMatch(fullName);
         }
 
         private void Validate()

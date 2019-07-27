@@ -51,6 +51,7 @@ namespace eDocLib.Asic
                 var result = reader.Read();
 
                 _dataFiles.AddRange(result.DataFiles);
+                _signatures.AddRange(result.Signatures);
             }
         }
 
