@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Minimal ETSI TS 119 612 v2 skeleton: QCertESign + granted. Certificate is a test-only self-signed fixture (see listing-cert.cer). -->
+<TrustServiceStatusList xmlns="http://uri.etsi.org/02231/v2#">
+  <TSPService>
+    <ServiceInformation>
+      <ServiceTypeIdentifier>http://uri.etsi.org/TrstSvc/Svctype/QESig/QCertESign</ServiceTypeIdentifier>
+      <ServiceStatus>http://uri.etsi.org/TrstSvc/TrustedList/Svcstatus/granted</ServiceStatus>
+      <ServiceDigitalIdentity>
+        <DigitalId>
+          <X509Certificate>MIIDTzCCAjegAwIBAgIUazZC4pGqSiFjnNDrW4JP8Li1g9owDQYJKoZIhvcNAQELBQAwNzEeMBwGA1UEAwwVZURvYyBUU0wgZml4dHVyZSBjZXJ0MRUwEwYDVQQKDAxlRG9jTGliIHRlc3QwHhcNMjYwNTA5MjMwOTM5WhcNMzYwNTA2MjMwOTM5WjA3MR4wHAYDVQQDDBVlRG9jIFRTTCBmaXh0dXJlIGNlcnQxFTATBgNVBAoMDGVEb2NMaWIgdGVzdDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAKLNunqmlNvyhNAcuLNFeuu2YlpFrBlMOFqKXNhfqZ/MNro6d54CsYnV7XB5DB+M0pkCs+Qz3F48nMXRxwM1Eh2xboA6vwCkSfnWRUTaAr/9hFl7Syvzm2EA1Lma0sIlnOqVpqbbkuiPgT4v50NYZS3HORY288GNgrDWpnvord9+h9Fgjao5iENJaBUT0Eo3c7rYaGn1JXoXuVFDpJMAAQRMF9gS0vIzTDwqlbyy4UIgHajf2Wp9550LOhCEjP8PSqPK0HFet9VMwxvSuOab4pSJa4niqaK4Y7fH4W80Rpeg+LVmXJ4UI5oehfXB/x63qgs6eHHdlfMrkKGrsB3mb4MCAwEAAaNTMFEwHQYDVR0OBBYEFJfNELDkGlCZICBg85NfWrsagVK6MB8GA1UdIwQYMBaAFJfNELDkGlCZICBg85NfWrsagVK6MA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEBAIUhG9N03tKO+dWc0K8p92mC9IRkjZGpqNTInEplCnfyPl+kLmor8u+XEkegeg02ZOW+8P2mTbMS6LRazcIlaJPE2Rt/g5G5FCfF9s4WG4U98YG8VtBgAWVGIfKbde0aucTmMpGnlxJbNrGKQVT9i3bpw71v2VkMwXbrEXEw9t9ZRzLGL1ExLDE6rk82lxoYKMXj5YwlkbbRh9gfAB3CpomGLx6F56MsYeswa2Rpl3eH4mxagjEGMOQJvumNi5jDheRa99C7NxL9mprljZMdn9Xqztls9UIFh5OXhBZQkhSHKM6t2CcQchrFyG50FjChb9sNdcyYKoo+akdR86HsnUc=</X509Certificate>
+        </DigitalId>
+      </ServiceDigitalIdentity>
+    </ServiceInformation>
+  </TSPService>
+</TrustServiceStatusList>

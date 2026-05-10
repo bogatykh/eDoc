@@ -1,0 +1,240 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=8.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=8.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="SignatureValidationIndication_TotalPassed" xml:space="preserve">
+    <value>All checks passed</value>
+  </data>
+  <data name="SignatureValidationIndication_TotalFailed" xml:space="preserve">
+    <value>Total failed</value>
+  </data>
+  <data name="SignatureValidationIndication_Indeterminate" xml:space="preserve">
+    <value>Indeterminate</value>
+  </data>
+  <data name="ValidationStatus_Passed" xml:space="preserve">
+    <value>OK</value>
+  </data>
+  <data name="ValidationStatus_Failed" xml:space="preserve">
+    <value>Failed</value>
+  </data>
+  <data name="ValidationStatus_Unchecked" xml:space="preserve">
+    <value>Unchecked</value>
+  </data>
+  <data name="ValidationStatus_Indeterminate" xml:space="preserve">
+    <value>Indeterminate</value>
+  </data>
+  <data name="ValidationType_Root" xml:space="preserve">
+    <value>Root</value>
+  </data>
+  <data name="ValidationType_Structure" xml:space="preserve">
+    <value>Structure</value>
+  </data>
+  <data name="ValidationType_StructureEdocDataObjectCount" xml:space="preserve">
+    <value>Data object count</value>
+  </data>
+  <data name="ValidationType_StructurePdfPageCount" xml:space="preserve">
+    <value>PDF page count</value>
+  </data>
+  <data name="ValidationType_StructureSignatureCount" xml:space="preserve">
+    <value>Signature count</value>
+  </data>
+  <data name="ValidationType_Signature" xml:space="preserve">
+    <value>Signature</value>
+  </data>
+  <data name="ValidationType_SignatureEdocDataObjectReferences" xml:space="preserve">
+    <value>Data object references (digest)</value>
+  </data>
+  <data name="ValidationType_SignatureEdocSigningCertificateReferences" xml:space="preserve">
+    <value>Signing certificate references (XAdES)</value>
+  </data>
+  <data name="ValidationType_SignatureMethod" xml:space="preserve">
+    <value>Signature method</value>
+  </data>
+  <data name="ValidationType_SignaturePdfAdobePkcs7DetachedSignedAttributes" xml:space="preserve">
+    <value>PDF Adobe PKCS#7 signed attributes</value>
+  </data>
+  <data name="ValidationType_SignaturePdfEtsiCadesDetachedSignedAttributes" xml:space="preserve">
+    <value>PDF ETSI CAdES signed attributes</value>
+  </data>
+  <data name="ValidationType_SignatureProductionPlace" xml:space="preserve">
+    <value>Signature production place</value>
+  </data>
+  <data name="ValidationType_SignatureProfile" xml:space="preserve">
+    <value>Signature profile</value>
+  </data>
+  <data name="ValidationType_SignatureSignerClaimedRoles" xml:space="preserve">
+    <value>Signer claimed roles</value>
+  </data>
+  <data name="ValidationType_SignatureSigningCertificate" xml:space="preserve">
+    <value>Certificate</value>
+  </data>
+  <data name="ValidationType_SignatureSigningCertificateSerial" xml:space="preserve">
+    <value>Certificate serial (hex)</value>
+  </data>
+  <data name="ValidationType_SignatureSigningCertificateValidity" xml:space="preserve">
+    <value>Certificate validity (UTC)</value>
+  </data>
+  <data name="ValidationType_SignatureSigningCertificateNotBefore" xml:space="preserve">
+    <value>Not before (UTC)</value>
+  </data>
+  <data name="ValidationType_SignatureSigningCertificateNotAfter" xml:space="preserve">
+    <value>Not after (UTC)</value>
+  </data>
+  <data name="ValidationType_SignatureSigningCertificateChain" xml:space="preserve">
+    <value>Signing certificate chain</value>
+  </data>
+  <data name="ValidationType_SignatureSigningCertificatePkixStatuses" xml:space="preserve">
+    <value>PKIX chain element status</value>
+  </data>
+  <data name="ValidationType_SignatureSigningCertificateStatus" xml:space="preserve">
+    <value>Certificate / revocation status</value>
+  </data>
+  <data name="ValidationType_SignatureRevocation" xml:space="preserve">
+    <value>Revocation</value>
+  </data>
+  <data name="ValidationType_SignatureRevocationPkixChainMode" xml:space="preserve">
+    <value>PKIX revocation (chain build)</value>
+  </data>
+  <data name="ValidationType_SignatureRevocationEmbeddedUnsigned" xml:space="preserve">
+    <value>Embedded RevocationValues</value>
+  </data>
+  <data name="ValidationType_SignatureRevocationApplicationOnline" xml:space="preserve">
+    <value>Online revocation (application-controlled)</value>
+  </data>
+  <data name="ValidationType_SignatureRevocationEmbeddedUnsignedArtifact" xml:space="preserve">
+    <value>Embedded revocation artifact</value>
+  </data>
+  <data name="ValidationType_SignatureRevocationApplicationOnlineArtifact" xml:space="preserve">
+    <value>Online revocation artifact</value>
+  </data>
+  <data name="ValidationType_SignatureTimestamp" xml:space="preserve">
+    <value>Signature timestamp</value>
+  </data>
+  <data name="ValidationType_SignatureTimestampCertificate" xml:space="preserve">
+    <value>Timestamp certificate (TSA chain)</value>
+  </data>
+  <data name="ValidationType_SignatureTimestampCertificateChain" xml:space="preserve">
+    <value>TSA certificate chain</value>
+  </data>
+  <data name="ValidationType_SignatureTimestampSignature" xml:space="preserve">
+    <value>Timestamp token (CMS)</value>
+  </data>
+  <data name="ValidationType_SignatureArchiveTimeStamp" xml:space="preserve">
+    <value>Archive time-stamps (XAdES-A)</value>
+  </data>
+  <data name="ValidationType_SignatureArchiveTimeStampSignature" xml:space="preserve">
+    <value>Archive time-stamp token (CMS)</value>
+  </data>
+  <data name="ValidationType_SignatureArchiveTimeStampCertificate" xml:space="preserve">
+    <value>Archive TSA certificate (PKIX)</value>
+  </data>
+  <data name="ValidationType_SignatureArchiveTimeStampImprint" xml:space="preserve">
+    <value>Archive time-stamp imprint (digest input)</value>
+  </data>
+  <data name="ValidationType_SignatureType" xml:space="preserve">
+    <value>Signature type</value>
+  </data>
+  <data name="ValidationType_SignatureValue" xml:space="preserve">
+    <value>Signature value</value>
+  </data>
+  <data name="SignatureProfile_BasicSignature" xml:space="preserve">
+    <value>BASIC (B-BES style)</value>
+  </data>
+  <data name="SignatureProfile_QualifiedSignature" xml:space="preserve">
+    <value>QUALIFIED (LT-style material)</value>
+  </data>
+  <data name="SignatureProfile_ArchivedSignature" xml:space="preserve">
+    <value>ARCHIVED (LTA)</value>
+  </data>
+  <data name="SignatureProfile_ProprietarySignature" xml:space="preserve">
+    <value>Proprietary</value>
+  </data>
+  <data name="SignatureProfile_UnknownSignature" xml:space="preserve">
+    <value>Unknown</value>
+  </data>
+  <data name="SignatureQualification_QESig" xml:space="preserve">
+    <value>Qualified electronic signature</value>
+  </data>
+  <data name="SignatureQualification_QESeal" xml:space="preserve">
+    <value>Qualified electronic seal</value>
+  </data>
+  <data name="SignatureQualification_ADESig" xml:space="preserve">
+    <value>Advanced electronic signature</value>
+  </data>
+  <data name="SignatureQualification_ADESeal" xml:space="preserve">
+    <value>Advanced electronic seal</value>
+  </data>
+  <data name="SignatureQualification_Unknown" xml:space="preserve">
+    <value>Unknown</value>
+  </data>
+  <data name="CertificateQualification_ESig" xml:space="preserve">
+    <value>ESig</value>
+  </data>
+  <data name="CertificateQualification_ESeal" xml:space="preserve">
+    <value>ESeal</value>
+  </data>
+  <data name="CertificateQualification_QcESig" xml:space="preserve">
+    <value>QcESig</value>
+  </data>
+  <data name="CertificateQualification_QcESeal" xml:space="preserve">
+    <value>QcESeal</value>
+  </data>
+  <data name="CertificateQualification_QcQscdESig" xml:space="preserve">
+    <value>QcQscdESig</value>
+  </data>
+  <data name="CertificateQualification_QcQscdESeal" xml:space="preserve">
+    <value>QcQscdESeal</value>
+  </data>
+  <data name="CertificateQualification_QcQscdUnknown" xml:space="preserve">
+    <value>QcQscdUnknown</value>
+  </data>
+  <data name="CertificateQualification_QcUnknown" xml:space="preserve">
+    <value>QcUnknown</value>
+  </data>
+  <data name="CertificateQualification_Unknown" xml:space="preserve">
+    <value>Unknown</value>
+  </data>
+  <data name="TimestampQualification_QTsa" xml:space="preserve">
+    <value>Qualified TSA</value>
+  </data>
+  <data name="TimestampQualification_Tsa" xml:space="preserve">
+    <value>TSA</value>
+  </data>
+  <data name="TimestampQualification_Unknown" xml:space="preserve">
+    <value>Unknown</value>
+  </data>
+  <data name="ValidationSignatureType_EdocV1" xml:space="preserve">
+    <value>EDOC v1</value>
+  </data>
+  <data name="ValidationSignatureType_EdocV2" xml:space="preserve">
+    <value>EDOC v2 (ASiC-E / XML)</value>
+  </data>
+  <data name="ValidationSignatureType_PdfAdobePkcs7Detached" xml:space="preserve">
+    <value>PDF Adobe PKCS#7</value>
+  </data>
+  <data name="ValidationSignatureType_PdfEtsiCadesDetached" xml:space="preserve">
+    <value>PDF ETSI CAdES</value>
+  </data>
+  <data name="ValidationSignatureType_UnknownType" xml:space="preserve">
+    <value>Unknown</value>
+  </data>
+  <data name="LegalBasisHint_TotalPassed" xml:space="preserve">
+    <value>Cryptographic verification succeeded under the configured trust policy; legal qualification is host-defined.</value>
+  </data>
+  <data name="LegalBasisHint_TotalFailed" xml:space="preserve">
+    <value>Core XML-DSig verification failed; the signature cannot be trusted at the cryptographic level.</value>
+  </data>
+  <data name="LegalBasisHint_Indeterminate" xml:space="preserve">
+    <value>Cryptographic core passed but trust policy checks failed or were inconclusive; review the validation tree.</value>
+  </data>
+</root>

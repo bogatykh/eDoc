@@ -10,7 +10,7 @@ namespace eDocLib
         [Fact]
         public void CreateWithDataFileTest()
         {
-            var target = new Edoc();
+            var target = Edoc.CreateNew();
 
             using (var simpleFileStream = new MemoryStream(Encoding.ASCII.GetBytes("simple content")))
             {
@@ -35,7 +35,7 @@ namespace eDocLib
         [Fact]
         public void ReadWithDataFileTest()
         {
-            var target = new Edoc();
+            var target = Edoc.CreateNew();
 
             using (var simpleFileStream = new MemoryStream(Encoding.ASCII.GetBytes("simple content")))
             {
