@@ -14,7 +14,7 @@ public class BesInvalidFixtureFileTests
     private const string MissingHint = "Missing fixture; regenerate: dotnet run --project tools/BesInvalidFixtureGen/BesInvalidFixtureGen.csproj";
 
     [Fact]
-    public void Wrong_first_zip_entry_rejected_on_load()
+    public async Task Wrong_first_zip_entry_rejected_on_load()
     {
         var path = InvalidFixturePath("invalid-wrong-first-entry.edoc");
         Assert.True(File.Exists(path), MissingHint);
@@ -25,7 +25,7 @@ public class BesInvalidFixtureFileTests
     }
 
     [Fact]
-    public void Wrong_mimetype_body_rejected_on_load()
+    public async Task Wrong_mimetype_body_rejected_on_load()
     {
         var path = InvalidFixturePath("invalid-mimetype-content.edoc");
         Assert.True(File.Exists(path), MissingHint);
@@ -36,7 +36,7 @@ public class BesInvalidFixtureFileTests
     }
 
     [Fact]
-    public void Manifest_ghost_path_rejected_on_load()
+    public async Task Manifest_ghost_path_rejected_on_load()
     {
         var path = InvalidFixturePath("invalid-manifest-ghost-file.edoc");
         Assert.True(File.Exists(path), MissingHint);
@@ -48,7 +48,7 @@ public class BesInvalidFixtureFileTests
     }
 
     [Fact]
-    public void Duplicate_payload_entry_name_rejected_on_load()
+    public async Task Duplicate_payload_entry_name_rejected_on_load()
     {
         var path = InvalidFixturePath("invalid-duplicate-payload-name.edoc");
         Assert.True(File.Exists(path), MissingHint);
@@ -59,7 +59,7 @@ public class BesInvalidFixtureFileTests
     }
 
     [Fact]
-    public void Truncated_zip_fails_during_read()
+    public async Task Truncated_zip_fails_during_read()
     {
         var path = InvalidFixturePath("invalid-truncated-zip.edoc");
         Assert.True(File.Exists(path), MissingHint);
@@ -69,13 +69,13 @@ public class BesInvalidFixtureFileTests
     }
 
     [Fact]
-    public void Payload_digest_mismatch_fails_validation_not_reader()
+    public async Task Payload_digest_mismatch_fails_validation_not_reader()
     {
         var path = InvalidFixturePath("invalid-digest-mismatch.edoc");
         Assert.True(File.Exists(path), MissingHint);
 
         using var fs = File.OpenRead(path);
-        var report = EdocValidation.OpenAndValidate(fs, SignatureTrustPolicy.CryptographyOnly);
+        var report = await EdocValidation.OpenAndValidateAsync(fs, SignatureTrustPolicy.CryptographyOnly);
         Assert.False(report.AllSignaturesValid);
         Assert.Contains(
             "Digest mismatch",
@@ -84,7 +84,7 @@ public class BesInvalidFixtureFileTests
     }
 
     [Fact]
-    public void Second_mimetype_entry_with_bad_body_rejected_on_load()
+    public async Task Second_mimetype_entry_with_bad_body_rejected_on_load()
     {
         var path = InvalidFixturePath("invalid-two-mimetype-entries.edoc");
         Assert.True(File.Exists(path), MissingHint);
@@ -96,7 +96,7 @@ public class BesInvalidFixtureFileTests
     }
 
     [Fact]
-    public void Missing_manifest_rejected_on_load()
+    public async Task Missing_manifest_rejected_on_load()
     {
         var path = InvalidFixturePath("invalid-missing-manifest.edoc");
         Assert.True(File.Exists(path), MissingHint);
@@ -108,13 +108,13 @@ public class BesInvalidFixtureFileTests
     }
 
     [Fact]
-    public void Signature_uri_not_matching_zip_payload_name_fails_validation()
+    public async Task Signature_uri_not_matching_zip_payload_name_fails_validation()
     {
         var path = InvalidFixturePath("invalid-signature-uri-mismatch.edoc");
         Assert.True(File.Exists(path), MissingHint);
 
         using var fs = File.OpenRead(path);
-        var report = EdocValidation.OpenAndValidate(fs, SignatureTrustPolicy.CryptographyOnly);
+        var report = await EdocValidation.OpenAndValidateAsync(fs, SignatureTrustPolicy.CryptographyOnly);
         Assert.False(report.AllSignaturesValid);
         Assert.Contains(
             "wrong-uri.bin",
@@ -127,7 +127,7 @@ public class BesInvalidFixtureFileTests
     }
 
     [Fact]
-    public void Mimetype_body_declares_asic_s_rejected_on_load_and_probe()
+    public async Task Mimetype_body_declares_asic_s_rejected_on_load_and_probe()
     {
         var path = InvalidFixturePath("invalid-mimetype-asic-s-body.edoc");
         Assert.True(File.Exists(path), MissingHint);
@@ -144,7 +144,7 @@ public class BesInvalidFixtureFileTests
     }
 
     [Fact]
-    public void Payload_entry_not_listed_in_manifest_rejected_on_load()
+    public async Task Payload_entry_not_listed_in_manifest_rejected_on_load()
     {
         var path = InvalidFixturePath("invalid-orphan-payload-not-in-manifest.edoc");
         Assert.True(File.Exists(path), MissingHint);
@@ -156,13 +156,13 @@ public class BesInvalidFixtureFileTests
     }
 
     [Fact]
-    public void Parallel_signatures_second_corrupt_first_valid_second_fails_validation()
+    public async Task Parallel_signatures_second_corrupt_first_valid_second_fails_validation()
     {
         var path = InvalidFixturePath("invalid-parallel-second-signature-corrupt.edoc");
         Assert.True(File.Exists(path), MissingHint);
 
         using var fs = File.OpenRead(path);
-        var report = EdocValidation.OpenAndValidate(fs, SignatureTrustPolicy.CryptographyOnly);
+        var report = await EdocValidation.OpenAndValidateAsync(fs, SignatureTrustPolicy.CryptographyOnly);
         Assert.Equal(2, report.Signatures.Count);
         Assert.True(report.Signatures[0].Result.Success, report.Signatures[0].Result.Error);
         Assert.False(report.Signatures[1].Result.Success);

@@ -11,7 +11,7 @@ namespace eDocLib.Tests;
 public class DataFileLongPathRoundTripTests
 {
     [Fact]
-    public void Long_single_segment_name_round_trips_and_validates()
+    public async Task Long_single_segment_name_round_trips_and_validates()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=long-name", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -36,7 +36,7 @@ public class DataFileLongPathRoundTripTests
         Assert.Single(loaded.DataFiles);
         Assert.Equal(relativeName, loaded.DataFiles.First().Name);
 
-        var report = EdocValidation.ValidateSignatures(loaded, SignatureTrustPolicy.CryptographyOnly);
+        var report = await EdocValidation.ValidateSignaturesAsync(loaded, SignatureTrustPolicy.CryptographyOnly);
         Assert.True(report.AllSignaturesValid, report.Signatures.ElementAtOrDefault(0)?.Result.Error);
     }
 }

@@ -3,9 +3,15 @@ using System.Text;
 using System.Xml;
 using System.Xml.Linq;
 
-namespace eDocLib.Trust.Tsl;
+namespace eDocLib.Tsl.Xml;
 
-/// <summary>Whitespace/Base64/dateTime helpers for ETSI TSL XML payloads.</summary>
+/// <summary>
+/// Whitespace / Base64 / dateTime helpers for ETSI TSL XML payloads (TS 119 612).
+/// </summary>
+/// <remarks>
+/// Shared low-level primitive consumed by both <c>eDocLib.Trust.Tsl</c> orchestration and
+/// <c>eDocLib.Validation</c> parsing. Lives outside both so neither module needs to depend on the other.
+/// </remarks>
 internal static class TslXmlText
 {
     /// <summary>Removes ASCII whitespace (CR, LF, space, tab) from <paramref name="value"/> for Base64 inputs.</summary>

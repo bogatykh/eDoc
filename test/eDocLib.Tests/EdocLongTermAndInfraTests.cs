@@ -14,7 +14,7 @@ namespace eDocLib.Tests;
 public class EdocLongTermAndInfraTests
 {
     [Fact]
-    public void AppendUnsignedLongTermMaterial_certificates_only()
+    public async Task AppendUnsignedLongTermMaterial_certificates_only()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=ltm", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -26,7 +26,7 @@ public class EdocLongTermAndInfraTests
     }
 
     [Fact]
-    public void EdocLongTermSigningJob_embeds_cert_and_crl_on_container()
+    public async Task EdocLongTermSigningJob_embeds_cert_and_crl_on_container()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=lt-job", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -48,7 +48,7 @@ public class EdocLongTermAndInfraTests
     }
 
     [Fact]
-    public void EdocLongTermSigningJob_RsaDigestPreference_flows_to_PrepareSign()
+    public async Task EdocLongTermSigningJob_RsaDigestPreference_flows_to_PrepareSign()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=lt-rsa384", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -91,7 +91,7 @@ public class EdocLongTermAndInfraTests
     }
 
     [Fact]
-    public void TimestampResponderRegistry_end_entity_route()
+    public async Task TimestampResponderRegistry_end_entity_route()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=tsr", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -104,7 +104,7 @@ public class EdocLongTermAndInfraTests
     }
 
     [Fact]
-    public void TimestampResponderRegistry_TryCreateHttpProvider_returns_disposable_provider()
+    public async Task TimestampResponderRegistry_TryCreateHttpProvider_returns_disposable_provider()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=tsr-http", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -117,7 +117,7 @@ public class EdocLongTermAndInfraTests
     }
 
     [Fact]
-    public void TrustAnchorLoader_pem_two_certs()
+    public async Task TrustAnchorLoader_pem_two_certs()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=a", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -133,7 +133,7 @@ public class EdocLongTermAndInfraTests
     }
 
     [Fact]
-    public void Edoc_Save_with_preflight_throws_on_bad_signature()
+    public async Task Edoc_Save_with_preflight_throws_on_bad_signature()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=bad", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -146,11 +146,13 @@ public class EdocLongTermAndInfraTests
             DateTimeOffset.Parse("2024-11-01T10:00:00Z"));
         edoc.AddSignature(sig);
         using var ms = new MemoryStream();
-        Assert.Throws<InvalidOperationException>(() => edoc.Save(ms, validateSignaturesFirst: true));
+        await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await edoc.SaveAsync(ms, validateSignaturesFirst: true))
+            ;
     }
 
     [Fact]
-    public void EdocLongTermSigningJob_pkcs7_embedded_chain_feeds_signer_pkix_when_anchor_is_root_only()
+    public async Task EdocLongTermSigningJob_pkcs7_embedded_chain_feeds_signer_pkix_when_anchor_is_root_only()
     {
         using var rootKey = RSA.Create(2048);
         var rootReq = new CertificateRequest("CN=lt-p7-root", rootKey, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -205,7 +207,7 @@ public class EdocLongTermAndInfraTests
             CustomTrustAnchors = anchors,
             IncludeUnsignedCertificateValuesInSignerChain = true,
         };
-        var okReport = EdocValidation.OpenAndValidate(zip, okPolicy);
+        var okReport = await EdocValidation.OpenAndValidateAsync(zip, okPolicy);
         Assert.True(okReport.AllSignaturesValid, okReport.Signatures[0].Result.Error);
 
         zip.Position = 0;
@@ -216,7 +218,7 @@ public class EdocLongTermAndInfraTests
             CustomTrustAnchors = anchors,
             IncludeUnsignedCertificateValuesInSignerChain = false,
         };
-        var failReport = EdocValidation.OpenAndValidate(zip, failPolicy);
+        var failReport = await EdocValidation.OpenAndValidateAsync(zip, failPolicy);
         Assert.False(failReport.AllSignaturesValid);
     }
 }

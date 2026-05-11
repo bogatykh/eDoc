@@ -13,7 +13,7 @@ namespace eDocLib.Tests;
 public class ValidationReportTests
 {
     [Fact]
-    public void BuildValidationReport_Bes_signature_has_tree_and_revocation_snapshot()
+    public async Task BuildValidationReport_Bes_signature_has_tree_and_revocation_snapshot()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=report-bes", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -32,7 +32,7 @@ public class ValidationReportTests
         ms.Position = 0;
 
         var policy = SignatureTrustPolicy.CryptographyOnly;
-        var read = EdocValidation.OpenAndValidate(ms, policy);
+        var read = await EdocValidation.OpenAndValidateAsync(ms, policy);
         Assert.True(read.AllSignaturesValid);
 
         var report = read.BuildValidationReport(policy);
@@ -68,7 +68,7 @@ public class ValidationReportTests
     }
 
     [Fact]
-    public void ValidationReportTextFormatter_includes_tree_and_summary()
+    public async Task ValidationReportTextFormatter_includes_tree_and_summary()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=report-text", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -86,7 +86,7 @@ public class ValidationReportTests
         ms.Position = 0;
 
         var policy = SignatureTrustPolicy.CryptographyOnly;
-        var read = EdocValidation.OpenAndValidate(ms, policy);
+        var read = await EdocValidation.OpenAndValidateAsync(ms, policy);
         var report = read.BuildValidationReport(policy);
         var text = report.ToPlainText(new DefaultValidationReportLocalizer());
         Assert.Contains("Document: all signatures valid", text);
@@ -96,7 +96,7 @@ public class ValidationReportTests
     }
 
     [Fact]
-    public void ResourceValidationReportLocalizer_reads_embedded_resx()
+    public async Task ResourceValidationReportLocalizer_reads_embedded_resx()
     {
         var loc = ResourceValidationReportLocalizer.ForEmbeddedDefaults();
         Assert.Equal("All checks passed", loc.Indication(SignatureValidationIndication.TotalPassed));
@@ -104,7 +104,7 @@ public class ValidationReportTests
     }
 
     [Fact]
-    public void ResourceValidationReportLocalizer_resx_defines_keys_for_all_reporting_enums()
+    public async Task ResourceValidationReportLocalizer_resx_defines_keys_for_all_reporting_enums()
     {
         var res = ResourceValidationReportLocalizer.ForEmbeddedDefaults(CultureInfo.InvariantCulture);
         var def = new DefaultValidationReportLocalizer(CultureInfo.InvariantCulture);
@@ -150,7 +150,7 @@ public class ValidationReportTests
     }
 
     [Fact]
-    public void BuildValidationReport_chain_includes_serial_and_validity_nodes()
+    public async Task BuildValidationReport_chain_includes_serial_and_validity_nodes()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=chain-nodes", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -173,7 +173,7 @@ public class ValidationReportTests
             RevocationMode = X509RevocationMode.NoCheck,
             CustomTrustAnchors = new X509Certificate2Collection(cert),
         };
-        var read = EdocValidation.OpenAndValidate(ms, policy);
+        var read = await EdocValidation.OpenAndValidateAsync(ms, policy);
         var report = read.BuildValidationReport(policy);
         var paths = report.Signatures[0].CertificatePaths;
         Assert.NotNull(paths.SigningCertificatePath);
@@ -197,7 +197,7 @@ public class ValidationReportTests
     }
 
     [Fact]
-    public void BuildValidationReport_chain_labels_end_entity_intermediate_and_trust_anchor()
+    public async Task BuildValidationReport_chain_labels_end_entity_intermediate_and_trust_anchor()
     {
         using var rootRsa = RSA.Create(2048);
         var rootReq = new CertificateRequest("CN=Root", rootRsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -244,7 +244,7 @@ public class ValidationReportTests
             CustomTrustAnchors = new X509Certificate2Collection(root),
             ExtraChainCertificates = new X509Certificate2Collection(sub),
         };
-        var read = EdocValidation.OpenAndValidate(ms, policy);
+        var read = await EdocValidation.OpenAndValidateAsync(ms, policy);
         Assert.True(read.AllSignaturesValid, read.Signatures[0].Result.Error);
         var report = read.BuildValidationReport(policy);
         var pathSummary = report.Signatures[0].CertificatePaths;
@@ -260,7 +260,7 @@ public class ValidationReportTests
     }
 
     [Fact]
-    public void BuildValidationReport_ReferenceTimeUtc_marks_not_after_failed_when_reference_after_cert_validity()
+    public async Task BuildValidationReport_ReferenceTimeUtc_marks_not_after_failed_when_reference_after_cert_validity()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=ref-time", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -283,7 +283,7 @@ public class ValidationReportTests
             RevocationMode = X509RevocationMode.NoCheck,
             CustomTrustAnchors = new X509Certificate2Collection(cert),
         };
-        var read = EdocValidation.OpenAndValidate(ms, policy);
+        var read = await EdocValidation.OpenAndValidateAsync(ms, policy);
         Assert.True(read.AllSignaturesValid, read.Signatures[0].Result.Error);
 
         var refLate = DateTimeOffset.UtcNow.AddYears(10);
@@ -299,7 +299,7 @@ public class ValidationReportTests
     }
 
     [Fact]
-    public void BuildValidationReport_includes_signer_roles_and_production_place_nodes()
+    public async Task BuildValidationReport_includes_signer_roles_and_production_place_nodes()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=x09-report", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -328,7 +328,7 @@ public class ValidationReportTests
             RequireAtLeastOneSignerClaimedRole = true,
         };
 
-        var read = EdocValidation.OpenAndValidate(ms, policy);
+        var read = await EdocValidation.OpenAndValidateAsync(ms, policy);
         Assert.True(read.AllSignaturesValid, read.Signatures[0].Result.Error);
         Assert.True(read.Signatures[0].Result.SignerClaimedRolesConstraintOk);
 
@@ -344,7 +344,7 @@ public class ValidationReportTests
     }
 
     [Fact]
-    public void DictionaryValidationReportLocalizer_overrides_enum_captions()
+    public async Task DictionaryValidationReportLocalizer_overrides_enum_captions()
     {
         var dict = new Dictionary<string, string>
         {

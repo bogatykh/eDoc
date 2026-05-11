@@ -16,7 +16,7 @@ namespace eDocLib.Tests;
 public class EdocDuplicateSignatureIdZipRoundTripTests
 {
     [Fact]
-    public void Two_signature_files_same_xml_id_resolve_and_validate_first()
+    public async Task Two_signature_files_same_xml_id_resolve_and_validate_first()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=dup-zip-id", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -46,7 +46,7 @@ public class EdocDuplicateSignatureIdZipRoundTripTests
         Assert.True(edoc.TryResolveSignature("shared-id", out var resolved));
         Assert.Same(edoc.GetSignatureAt(0), resolved);
 
-        var report = EdocValidation.ValidateSignatures(edoc, SignatureTrustPolicy.CryptographyOnly);
+        var report = await EdocValidation.ValidateSignaturesAsync(edoc, SignatureTrustPolicy.CryptographyOnly);
         Assert.Equal(2, report.Signatures.Count);
         Assert.True(report.Signatures[0].Result.Success, report.Signatures[0].Result.Error);
         Assert.True(report.Signatures[1].Result.Success, report.Signatures[1].Result.Error);

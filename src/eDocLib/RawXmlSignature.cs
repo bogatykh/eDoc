@@ -3,7 +3,6 @@ using System.IO;
 using System.Text;
 using System.Security.Cryptography.X509Certificates;
 using System.Xml;
-using eDocLib.Asic.Xades;
 
 namespace eDocLib;
 

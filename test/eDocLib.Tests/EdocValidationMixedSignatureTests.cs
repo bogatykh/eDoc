@@ -12,7 +12,7 @@ namespace eDocLib.Tests;
 public class EdocValidationMixedSignatureTests
 {
     [Fact]
-    public void Mixed_Xades_and_raw_xml_signature_reports_each_and_overall_invalid()
+    public async Task Mixed_Xades_and_raw_xml_signature_reports_each_and_overall_invalid()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=mixed", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -50,7 +50,7 @@ public class EdocValidationMixedSignatureTests
         edoc.AddSignature(goodSig);
         edoc.AddSignature(new RawXmlSignature(rawXml));
 
-        var report = EdocValidation.ValidateSignatures(edoc);
+        var report = await EdocValidation.ValidateSignaturesAsync(edoc);
         Assert.Equal(2, report.Signatures.Count);
         Assert.False(report.AllSignaturesValid);
         Assert.True(report.Signatures[0].Result.Success);

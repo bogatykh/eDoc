@@ -177,11 +177,42 @@ public sealed class SignatureTrustPolicy
     public TslQualificationMappingOptions? TslQualificationMappingOptions { get; init; }
 
     /// <summary>
-    /// When <c>true</c> (default), merges built-in Latvian national URI additions into
+    /// When <c>true</c> (default), merges built-in national URI additions for Latvia into
     /// <see cref="TslQualificationMappingOptions"/> before qualification mapping (additive URI unions).
     /// Set <c>false</c> to use only explicit options and the core ETSI URI sets from mapping options.
     /// </summary>
+    /// <remarks>
+    /// This flag exists for historical reasons: the Latvian national TSL publishes ETSI <c>accredited</c>
+    /// alongside <c>granted</c> / <c>recognisedatnationallevel</c>, and early integrators relied on the
+    /// library merging that mapping silently. Hosts deploying to other jurisdictions should set this to
+    /// <c>false</c> and pass an explicit <see cref="TslQualificationMappingOptions"/> with the URI sets
+    /// applicable to their territory; rely on this flag only for Latvian deployments.
+    /// </remarks>
     public bool MergeTrustListQualificationUriDefaults { get; init; } = true;
+
+    /// <summary>
+    /// Resolves the effective <see cref="TslQualificationMappingOptions"/> for this policy: merges the
+    /// optional national defaults gated by <see cref="MergeTrustListQualificationUriDefaults"/> with any
+    /// caller-supplied <see cref="TslQualificationMappingOptions"/>. Returns <c>null</c> when there is
+    /// nothing to merge (no defaults requested and no caller options).
+    /// </summary>
+    /// <remarks>
+    /// The validator calls this rather than reaching into territory-specific defaults from inside the
+    /// generic verification engine, so the host-visible policy is the single point that decides whether
+    /// a national mapping bundle is merged in.
+    /// </remarks>
+    internal TslQualificationMappingOptions? ResolveQualificationMappingOptions()
+    {
+        if (!MergeTrustListQualificationUriDefaults)
+        {
+            return TslQualificationMappingOptions;
+        }
+
+        return TslQualificationMappingOptions.Merge(
+            TslQualificationMappingDefaults.LatvianNationalPublished,
+            TslQualificationMappingOptions)
+            ?? TslQualificationMappingDefaults.LatvianNationalPublished;
+    }
 
     /// <summary>
     /// When <c>true</c> and <see cref="TrustedListServiceIndex"/> is non-null, validation fails if the signing certificate

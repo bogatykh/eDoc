@@ -30,7 +30,7 @@ public class AsicContainerReaderMoreHazardTests
     /// distinct from two <c>mimetype</c> entries before the manifest (covered by committed invalid fixtures).
     /// </summary>
     [Fact]
-    public void Trailing_second_mimetype_entry_with_non_e_body_rejected_on_validate()
+    public async Task Trailing_second_mimetype_entry_with_non_e_body_rejected_on_validate()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=trail-mime", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -87,7 +87,7 @@ public class AsicContainerReaderMoreHazardTests
     }
 
     [Fact]
-    public void Manifest_xml_duplicate_full_path_same_spelling_throws_on_load()
+    public async Task Manifest_xml_duplicate_full_path_same_spelling_throws_on_load()
     {
         XNamespace ns = "urn:oasis:names:tc:opendocument:xmlns:manifest:1.0";
         var manifestDoc = new XDocument(
@@ -121,7 +121,7 @@ public class AsicContainerReaderMoreHazardTests
     }
 
     [Fact]
-    public void Manifest_xml_duplicate_full_path_differing_only_by_case_throws_on_load()
+    public async Task Manifest_xml_duplicate_full_path_differing_only_by_case_throws_on_load()
     {
         XNamespace ns = "urn:oasis:names:tc:opendocument:xmlns:manifest:1.0";
         var manifestDoc = new XDocument(
@@ -159,7 +159,7 @@ public class AsicContainerReaderMoreHazardTests
     /// so a listed path need not exist as a payload ZIP entry (documents current behaviour).
     /// </summary>
     [Fact]
-    public void Manifest_lists_META_INF_path_without_zip_entry_does_not_fail_structural_validation()
+    public async Task Manifest_lists_META_INF_path_without_zip_entry_does_not_fail_structural_validation()
     {
         XNamespace ns = "urn:oasis:names:tc:opendocument:xmlns:manifest:1.0";
         var manifestDoc = new XDocument(
@@ -195,7 +195,7 @@ public class AsicContainerReaderMoreHazardTests
     }
 
     [Fact]
-    public void First_mimetype_zip_entry_name_mixed_case_still_opens_and_validates()
+    public async Task First_mimetype_zip_entry_name_mixed_case_still_opens_and_validates()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=mime-case", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -235,12 +235,12 @@ public class AsicContainerReaderMoreHazardTests
         }
 
         ms.Position = 0;
-        var report = EdocValidation.OpenAndValidate(ms, SignatureTrustPolicy.CryptographyOnly);
+        var report = await EdocValidation.OpenAndValidateAsync(ms, SignatureTrustPolicy.CryptographyOnly);
         Assert.True(report.AllSignaturesValid, report.Signatures.ElementAtOrDefault(0)?.Result.Error);
     }
 
     [Fact]
-    public void Signature_entry_empty_stream_throws_on_load()
+    public async Task Signature_entry_empty_stream_throws_on_load()
     {
         var manifest = new OasisManifest();
         manifest.Add("doc.txt", "text/plain");
@@ -254,7 +254,7 @@ public class AsicContainerReaderMoreHazardTests
     }
 
     [Fact]
-    public void Signature_entry_well_formed_xml_without_ds_Signature_throws_ArgumentException()
+    public async Task Signature_entry_well_formed_xml_without_ds_Signature_throws_ArgumentException()
     {
         var manifest = new OasisManifest();
         manifest.Add("doc.txt", "text/plain");

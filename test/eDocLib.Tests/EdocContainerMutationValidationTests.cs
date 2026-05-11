@@ -14,7 +14,7 @@ namespace eDocLib.Tests;
 public class EdocContainerMutationValidationTests
 {
     [Fact]
-    public void After_signing_add_extra_payload_signature_check_still_passes()
+    public async Task After_signing_add_extra_payload_signature_check_still_passes()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=drift", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -35,12 +35,12 @@ public class EdocContainerMutationValidationTests
         edoc.Save(zip);
         zip.Position = 0;
 
-        var report = EdocValidation.OpenAndValidate(zip, SignatureTrustPolicy.CryptographyOnly);
+        var report = await EdocValidation.OpenAndValidateAsync(zip, SignatureTrustPolicy.CryptographyOnly);
         Assert.True(report.AllSignaturesValid, report.Signatures[0].Result.Error);
     }
 
     [Fact]
-    public void Manifest_mime_can_differ_from_signing_time_label_without_breaking_digest_checks()
+    public async Task Manifest_mime_can_differ_from_signing_time_label_without_breaking_digest_checks()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=mime-drift", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -58,12 +58,12 @@ public class EdocContainerMutationValidationTests
         edoc.Save(zip);
         zip.Position = 0;
 
-        var report = EdocValidation.OpenAndValidate(zip, SignatureTrustPolicy.CryptographyOnly);
+        var report = await EdocValidation.OpenAndValidateAsync(zip, SignatureTrustPolicy.CryptographyOnly);
         Assert.True(report.AllSignaturesValid, report.Signatures[0].Result.Error);
     }
 
     [Fact]
-    public void Removing_signed_payload_invalidates_validation()
+    public async Task Removing_signed_payload_invalidates_validation()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=strip", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -84,7 +84,7 @@ public class EdocContainerMutationValidationTests
         edoc.Save(zip);
         zip.Position = 0;
 
-        var report = EdocValidation.OpenAndValidate(zip, SignatureTrustPolicy.CryptographyOnly);
+        var report = await EdocValidation.OpenAndValidateAsync(zip, SignatureTrustPolicy.CryptographyOnly);
         Assert.False(report.AllSignaturesValid);
     }
 }

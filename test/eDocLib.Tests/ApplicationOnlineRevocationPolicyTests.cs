@@ -39,7 +39,7 @@ public class ApplicationOnlineRevocationPolicyTests
     }
 
     [Fact]
-    public void UsesApplicationControlledOnlineRevocation_requires_both_online_and_http_client()
+    public async Task UsesApplicationControlledOnlineRevocation_requires_both_online_and_http_client()
     {
         using var http = new HttpClient();
         Assert.False(new SignatureTrustPolicy { RevocationMode = X509RevocationMode.Online }.UsesApplicationControlledOnlineRevocation);
@@ -50,7 +50,7 @@ public class ApplicationOnlineRevocationPolicyTests
     }
 
     [Fact]
-    public void ApplyRevocationMode_sets_NoCheck_when_application_controls_online_revocation()
+    public async Task ApplyRevocationMode_sets_NoCheck_when_application_controls_online_revocation()
     {
         using var chain = new X509Chain();
         using var http = new HttpClient();
@@ -68,7 +68,7 @@ public class ApplicationOnlineRevocationPolicyTests
     }
 
     [Fact]
-    public void ApplicationOnlineRevocation_TryVerifyIfRequired_uses_injected_material_fetcher()
+    public async Task ApplicationOnlineRevocation_TryVerifyIfRequired_uses_injected_material_fetcher()
     {
         var (ocspDer, leaf, issuer) =
             BcOcspRevocationTestData.BuildGoodOcspWithIssuerResponderEmbedded(BigInteger.ValueOf(42_001));
@@ -86,22 +86,14 @@ public class ApplicationOnlineRevocationPolicyTests
         };
 
         var fetcher = new RecordingFetcher(new RevocationMaterialFetchResult([ocspDer], []));
-        Assert.True(
-            ApplicationOnlineRevocation.TryVerifyIfRequired(
-                policy,
-                leaf,
-                chain,
-                out var err,
-                out var fetched,
-                out _,
-                fetcher),
-            err);
+        var outcome = await ApplicationOnlineRevocation.TryVerifyIfRequiredAsync(policy, leaf, chain, fetcher);
+        Assert.True(outcome.Ok, outcome.Error);
         Assert.Equal(1, fetcher.CallCount);
-        Assert.NotNull(fetched);
+        Assert.NotNull(outcome.Fetched);
     }
 
     [Fact]
-    public void OnlineRevocationVerifier_TryVerifyFetched_fails_on_empty_material()
+    public async Task OnlineRevocationVerifier_TryVerifyFetched_fails_on_empty_material()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=x", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -112,7 +104,7 @@ public class ApplicationOnlineRevocationPolicyTests
     }
 
     [Fact]
-    public void OnlineRevocationVerifier_accepts_fetched_ocsp_under_strict_responder_pkix_when_embedded_is_ca()
+    public async Task OnlineRevocationVerifier_accepts_fetched_ocsp_under_strict_responder_pkix_when_embedded_is_ca()
     {
         var (ocspDer, leaf, issuer) =
             BcOcspRevocationTestData.BuildGoodOcspWithIssuerResponderEmbedded(BigInteger.ValueOf(88_801));
@@ -128,7 +120,7 @@ public class ApplicationOnlineRevocationPolicyTests
     }
 
     [Fact]
-    public void OnlineRevocationVerifier_rejects_fetched_ocsp_when_dedicated_responder_not_under_signer_anchors()
+    public async Task OnlineRevocationVerifier_rejects_fetched_ocsp_when_dedicated_responder_not_under_signer_anchors()
     {
         var (ocspDer, leaf, issuer) =
             BcOcspRevocationTestData.BuildOcspSignedByDedicatedResponder(BigInteger.ValueOf(88_802));
@@ -145,7 +137,7 @@ public class ApplicationOnlineRevocationPolicyTests
     }
 
     [Fact]
-    public void RevocationReport_self_signed_anchor_with_app_online_marks_fetch_skipped_and_succeeds()
+    public async Task RevocationReport_self_signed_anchor_with_app_online_marks_fetch_skipped_and_succeeds()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=self online", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -166,7 +158,7 @@ public class ApplicationOnlineRevocationPolicyTests
             CustomTrustAnchors = new X509Certificate2Collection(cert),
         };
 
-        var result = SignatureValidator.Validate(
+        var result = await SignatureValidator.ValidateAsync(
             sig,
             new Dictionary<string, byte[]> { ["doc.txt"] = payload },
             policy);
@@ -181,7 +173,7 @@ public class ApplicationOnlineRevocationPolicyTests
     }
 
     [Fact]
-    public void Edoc_validate_fails_when_online_revocation_client_set_but_leaf_has_no_AIA_or_CDP()
+    public async Task Edoc_validate_fails_when_online_revocation_client_set_but_leaf_has_no_AIA_or_CDP()
     {
         using var rootRsa = RSA.Create(2048);
         var rootReq = new CertificateRequest("CN=Root", rootRsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -243,7 +235,7 @@ public class ApplicationOnlineRevocationPolicyTests
 
         try
         {
-            var report = EdocValidation.OpenAndValidate(zip, policy);
+            var report = await EdocValidation.OpenAndValidateAsync(zip, policy);
             Assert.False(report.AllSignaturesValid);
             Assert.Contains("Online revocation", report.Signatures[0].Result.Error ?? "", StringComparison.Ordinal);
             Assert.True(report.Signatures[0].Result.ApplicationOnlineRevocationChecked);

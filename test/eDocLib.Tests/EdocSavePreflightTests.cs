@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading.Tasks;
 using eDocLib;
 using eDocLib.Validation;
 using eDocLib.Asic.Xades;
@@ -7,22 +8,22 @@ using Xunit;
 
 namespace eDocLib.Tests;
 
-/// <summary><see cref="Edoc.Save(System.IO.Stream,bool,eDocLib.Validation.SignatureTrustPolicy?)"/> preflight branch.</summary>
+/// <summary><see cref="Edoc.SaveAsync(System.IO.Stream,bool,eDocLib.Validation.SignatureTrustPolicy?,System.Threading.CancellationToken)"/> preflight branch.</summary>
 public class EdocSavePreflightTests
 {
     [Fact]
-    public void Save_with_preflight_true_and_no_signatures_does_not_throw()
+    public async Task Save_with_preflight_true_and_no_signatures_does_not_throw()
     {
         var edoc = Edoc.CreateNew();
         edoc.AddDataFile(new MemoryStream("only-data"u8.ToArray()), "plain.txt", "text/plain");
 
         using var ms = new MemoryStream();
-        edoc.Save(ms, validateSignaturesFirst: true);
+        await edoc.SaveAsync(ms, validateSignaturesFirst: true);
         Assert.True(ms.Length > 0);
     }
 
     [Fact]
-    public void Save_with_preflight_true_and_valid_signature_succeeds()
+    public async Task Save_with_preflight_true_and_valid_signature_succeeds()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=preflight-ok", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -39,10 +40,10 @@ public class EdocSavePreflightTests
         edoc.AddSignature(sig);
 
         using var ms = new MemoryStream();
-        edoc.Save(ms, validateSignaturesFirst: true, SignatureTrustPolicy.CryptographyOnly);
+        await edoc.SaveAsync(ms, validateSignaturesFirst: true, SignatureTrustPolicy.CryptographyOnly);
         ms.Position = 0;
 
-        var report = EdocValidation.OpenAndValidate(ms, SignatureTrustPolicy.CryptographyOnly);
+        var report = await EdocValidation.OpenAndValidateAsync(ms, SignatureTrustPolicy.CryptographyOnly);
         Assert.True(report.AllSignaturesValid);
     }
 }

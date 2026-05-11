@@ -15,33 +15,25 @@ namespace eDocLib.Validation;
 internal static class ApplicationOnlineRevocation
 {
     /// <summary>
-    /// Runs network revocation on a thread-pool thread to avoid deadlocks when callers have a <see cref="SynchronizationContext"/>.
+    /// Fetches and verifies OCSP/CRL when policy requires application-controlled online revocation.
     /// A single-element chain is skipped only when the end-entity is self-signed (raw subject == issuer).
-    /// When verification runs and HTTP completes, <paramref name="fetchedMaterial"/> is the last fetch result (possibly empty OCSP/CRL lists).
-    /// Otherwise <c>null</c>.
+    /// When verification runs and HTTP completes, <see cref="OnlineRevocationOutcome.Fetched"/> is the last fetch result (possibly empty OCSP/CRL lists); otherwise <c>null</c>.
     /// </summary>
-    /// <param name="policy">Signature trust policy that controls whether online revocation is required.</param>
-    /// <param name="endEntity">Certificate whose revocation status is checked.</param>
-    /// <param name="chain">Built certificate chain for the end-entity certificate.</param>
-    /// <param name="error">Failure message when verification does not complete successfully.</param>
-    /// <param name="fetchedMaterial">Fetched OCSP and CRL DER when HTTP fetch completed.</param>
-    /// <param name="artifactOutcomes">Detailed verification outcomes for fetched artifacts.</param>
-    /// <param name="materialFetcher">Optional fetcher; default uses <see cref="CertificateRevocationMaterialFetcher"/>.</param>
-    public static bool TryVerifyIfRequired(
+    /// <param name="policy">Trust policy; must pass <see cref="SignatureTrustPolicy.ValidateRevocationFetchConfiguration"/> when online revocation is enabled.</param>
+    /// <param name="endEntity">Leaf certificate whose revocation status is checked.</param>
+    /// <param name="chain">Built PKIX chain for <paramref name="endEntity"/>.</param>
+    /// <param name="materialFetcher">Optional OCSP/CRL fetcher; default uses <see cref="CertificateRevocationMaterialFetcher"/>.</param>
+    /// <param name="cancellationToken">Linked with policy timeout and <see cref="SignatureTrustPolicy.RevocationFetchCancellationToken"/> for the HTTP fetch.</param>
+    public static ValueTask<OnlineRevocationOutcome> TryVerifyIfRequiredAsync(
         SignatureTrustPolicy policy,
         X509Certificate2 endEntity,
         X509Chain chain,
-        out string? error,
-        out RevocationMaterialFetchResult? fetchedMaterial,
-        out IReadOnlyList<RevocationArtifactOutcome>? artifactOutcomes,
-        IRevocationMaterialFetcher? materialFetcher = null)
+        IRevocationMaterialFetcher? materialFetcher = null,
+        CancellationToken cancellationToken = default)
     {
-        error = null;
-        fetchedMaterial = null;
-        artifactOutcomes = null;
         if (!policy.UsesApplicationControlledOnlineRevocation)
         {
-            return true;
+            return new ValueTask<OnlineRevocationOutcome>(OnlineRevocationOutcome.SuccessNoFetch);
         }
 
         try
@@ -50,38 +42,42 @@ internal static class ApplicationOnlineRevocation
         }
         catch (InvalidOperationException ex)
         {
-            error = ex.Message;
-            return false;
+            return new ValueTask<OnlineRevocationOutcome>(OnlineRevocationOutcome.Failed(ex.Message));
         }
 
         var fetcher = materialFetcher ?? RevocationMaterialFetcherDefaults.Instance;
+        return RunAsync(policy, endEntity, chain, fetcher, cancellationToken);
 
-        try
+        static async ValueTask<OnlineRevocationOutcome> RunAsync(
+            SignatureTrustPolicy policy,
+            X509Certificate2 endEntity,
+            X509Chain chain,
+            IRevocationMaterialFetcher materialFetcher,
+            CancellationToken cancellationToken)
         {
-            var (ok, err, fetched, artifacts) =
-                Task.Run(() => TryVerifyIfRequiredAsync(policy, endEntity, chain, fetcher)).GetAwaiter().GetResult();
-            error = err;
-            fetchedMaterial = fetched;
-            artifactOutcomes = artifacts;
-            return ok;
-        }
-        catch (Exception ex)
-        {
-            error = "Online revocation failed: " + ex.Message;
-            return false;
+            try
+            {
+                var (ok, err, fetched, artifacts) =
+                    await VerifyCoreAsync(policy, endEntity, chain, materialFetcher, cancellationToken).ConfigureAwait(false);
+                return new OnlineRevocationOutcome(ok, err, fetched, artifacts);
+            }
+            catch (Exception ex)
+            {
+                return OnlineRevocationOutcome.Failed("Online revocation failed: " + ex.Message);
+            }
         }
     }
 
-    /// <summary>Stores the task.</summary>
     private static async Task<(
         bool Ok,
         string? Error,
         RevocationMaterialFetchResult? Fetched,
-        IReadOnlyList<RevocationArtifactOutcome>? Artifacts)> TryVerifyIfRequiredAsync(
+        IReadOnlyList<RevocationArtifactOutcome>? Artifacts)> VerifyCoreAsync(
         SignatureTrustPolicy policy,
         X509Certificate2 endEntity,
         X509Chain chain,
-        IRevocationMaterialFetcher materialFetcher)
+        IRevocationMaterialFetcher materialFetcher,
+        CancellationToken cancellationToken)
     {
         if (chain.ChainElements.Count < 2)
         {
@@ -104,7 +100,7 @@ internal static class ApplicationOnlineRevocation
         RevocationMaterialFetchResult fetched;
         try
         {
-            fetched = await FetchWithPolicyTimeoutAsync(policy, endEntity, issuer, materialFetcher).ConfigureAwait(false);
+            fetched = await FetchWithPolicyTimeoutAsync(policy, endEntity, issuer, materialFetcher, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -130,12 +126,12 @@ internal static class ApplicationOnlineRevocation
         return (true, null, fetched, artifacts);
     }
 
-    /// <summary>Fetches with policy timeout async.</summary>
     private static async Task<RevocationMaterialFetchResult> FetchWithPolicyTimeoutAsync(
         SignatureTrustPolicy policy,
         X509Certificate2 endEntity,
         X509Certificate2 issuer,
-        IRevocationMaterialFetcher materialFetcher)
+        IRevocationMaterialFetcher materialFetcher,
+        CancellationToken callerCancellationToken)
     {
         Task<RevocationMaterialFetchResult> FetchAsync(CancellationToken ct) =>
             materialFetcher.FetchAsync(
@@ -150,17 +146,20 @@ internal static class ApplicationOnlineRevocation
 
         if (policy.RevocationFetchTimeout == Timeout.InfiniteTimeSpan)
         {
-            return await FetchAsync(policy.RevocationFetchCancellationToken).ConfigureAwait(false);
+            using var linkedNoTimeout = CancellationTokenSource.CreateLinkedTokenSource(
+                policy.RevocationFetchCancellationToken,
+                callerCancellationToken);
+            return await FetchAsync(linkedNoTimeout.Token).ConfigureAwait(false);
         }
 
         using var timeoutCts = new CancellationTokenSource(policy.RevocationFetchTimeout);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(
             timeoutCts.Token,
-            policy.RevocationFetchCancellationToken);
+            policy.RevocationFetchCancellationToken,
+            callerCancellationToken);
         return await FetchAsync(linked.Token).ConfigureAwait(false);
     }
 
-    /// <summary>Returns whether self signed end entity.</summary>
     private static bool IsSelfSignedEndEntity(X509Certificate2 cert)
     {
         try

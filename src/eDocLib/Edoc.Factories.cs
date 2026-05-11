@@ -1,4 +1,6 @@
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using eDocLib.Asic.Container;
 using eDocLib.Configuration;
 using eDocLib.Validation;
@@ -40,16 +42,18 @@ public sealed partial class Edoc
         return EdocOpen.OpenMapped(path, config);
     }
 
-    /// <summary>Opens with <paramref name="config"/>, then verifies signatures.</summary>
-    public static EdocReadValidationResult OpenAndValidate(
+    /// <summary>Opens with <paramref name="config"/>, then verifies signatures asynchronously.</summary>
+    public static async Task<EdocReadValidationResult> OpenAndValidateAsync(
         EdocLibConfig config,
         Stream stream,
-        SignatureTrustPolicy? trustPolicy = null)
+        SignatureTrustPolicy? trustPolicy = null,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(config);
         ArgumentNullException.ThrowIfNull(stream);
         var edoc = Open(config, stream);
-        return EdocValidation.ValidateSignatures(edoc, trustPolicy);
+        var result = await EdocValidation.ValidateSignaturesAsync(edoc, trustPolicy, cancellationToken).ConfigureAwait(false);
+        return result;
     }
 
     /// <summary>Non-throwing probe for ASiC-E shell layout (mimetype + manifest), on a seekable stream.</summary>

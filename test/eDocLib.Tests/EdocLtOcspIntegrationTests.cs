@@ -22,7 +22,7 @@ namespace eDocLib.Tests;
 public class EdocLtOcspIntegrationTests
 {
     [Fact]
-    public void OpenAndValidate_succeeds_with_embedded_crl_only_under_custom_anchor()
+    public async Task OpenAndValidate_succeeds_with_embedded_crl_only_under_custom_anchor()
     {
         var (issuer, leaf, crlDer) = CreateIssuerLeafAndEmptyCrl("CA CRL edoc", "Signer CRL edoc");
         using (issuer)
@@ -51,7 +51,7 @@ public class EdocLtOcspIntegrationTests
                 VerifyUnsignedRevocationWhenPresent = true,
             };
 
-            var read = EdocValidation.OpenAndValidate(zip, policy);
+            var read = await EdocValidation.OpenAndValidateAsync(zip, policy);
             Assert.True(read.AllSignaturesValid, read.Signatures.ElementAtOrDefault(0)?.Result.Error);
             Assert.True(read.Signatures[0].Result.Success);
             Assert.True(read.Signatures[0].Result.UnsignedRevocationArtifactsValid);
@@ -59,7 +59,7 @@ public class EdocLtOcspIntegrationTests
     }
 
     [Fact]
-    public void EdocLongTermSigningJob_round_trip_validates_with_embedded_crl_only()
+    public async Task EdocLongTermSigningJob_round_trip_validates_with_embedded_crl_only()
     {
         var (issuer, leaf, crlDer) = CreateIssuerLeafAndEmptyCrl("CA LT job CRL", "Signer LT job CRL");
         using (issuer)
@@ -92,14 +92,14 @@ public class EdocLtOcspIntegrationTests
                 VerifyUnsignedRevocationWhenPresent = true,
             };
 
-            var read = EdocValidation.OpenAndValidate(zip, policy);
+            var read = await EdocValidation.OpenAndValidateAsync(zip, policy);
             Assert.True(read.AllSignaturesValid);
             Assert.True(read.Signatures[0].Result.UnsignedRevocationArtifactsValid);
         }
     }
 
     [Fact]
-    public void OpenAndValidate_succeeds_with_embedded_ocsp_under_custom_anchor()
+    public async Task OpenAndValidate_succeeds_with_embedded_ocsp_under_custom_anchor()
     {
         var (issuer, leaf, ocspDer) = CreateIssuerLeafAndIssuerSignedOcsp("CA OCSP edoc", "Signer OCSP edoc");
         using (issuer)
@@ -129,7 +129,7 @@ public class EdocLtOcspIntegrationTests
                 StrictEmbeddedOcspValidateResponderCertificateChain = true,
             };
 
-            var read = EdocValidation.OpenAndValidate(zip, policy);
+            var read = await EdocValidation.OpenAndValidateAsync(zip, policy);
             Assert.True(read.AllSignaturesValid);
             Assert.True(read.Signatures[0].Result.Success);
             Assert.True(read.Signatures[0].Result.UnsignedRevocationArtifactsValid);
@@ -137,7 +137,7 @@ public class EdocLtOcspIntegrationTests
     }
 
     [Fact]
-    public void EdocLongTermSigningJob_round_trip_validates_with_embedded_ocsp_and_strict_responder_pkix()
+    public async Task EdocLongTermSigningJob_round_trip_validates_with_embedded_ocsp_and_strict_responder_pkix()
     {
         var (issuer, leaf, ocspDer) = CreateIssuerLeafAndIssuerSignedOcsp("CA LT job OCSP", "Signer LT job OCSP");
         using (issuer)
@@ -171,7 +171,7 @@ public class EdocLtOcspIntegrationTests
                 StrictEmbeddedOcspValidateResponderCertificateChain = true,
             };
 
-            var read = EdocValidation.OpenAndValidate(zip, policy);
+            var read = await EdocValidation.OpenAndValidateAsync(zip, policy);
             Assert.True(read.AllSignaturesValid);
             Assert.True(read.Signatures[0].Result.UnsignedRevocationArtifactsValid);
         }
@@ -182,7 +182,7 @@ public class EdocLtOcspIntegrationTests
     /// plus document-level <see cref="EdocValidation.BuildValidationReport"/> (same reporting expectations as <see cref="LtFixtureOpenAndValidateTests"/>).
     /// </summary>
     [Fact]
-    public void EdocLongTermSigningJob_BuildValidationReport_embedded_ocsp_shows_qualified_profile_and_revocation_passed()
+    public async Task EdocLongTermSigningJob_BuildValidationReport_embedded_ocsp_shows_qualified_profile_and_revocation_passed()
     {
         var (issuer, leaf, ocspDer) = CreateIssuerLeafAndIssuerSignedOcsp("CA LT report", "Signer LT report");
         using (issuer)
@@ -216,7 +216,7 @@ public class EdocLtOcspIntegrationTests
                 StrictEmbeddedOcspValidateResponderCertificateChain = true,
             };
 
-            var read = EdocValidation.OpenAndValidate(zip, policy);
+            var read = await EdocValidation.OpenAndValidateAsync(zip, policy);
             Assert.True(read.AllSignaturesValid);
 
             var report = read.BuildValidationReport(policy);
@@ -237,7 +237,7 @@ public class EdocLtOcspIntegrationTests
     /// EP-13 + V-05: same LT container as embedded-OCSP report test, plus <see cref="SignatureTrustPolicy.TrustedListServiceIndex"/> so qualification resolves to QES on validate (host supplies LT material; no automatic TSL-driven signing helper).
     /// </summary>
     [Fact]
-    public void EdocLongTermSigningJob_LT_embedded_ocsp_TrustedListServiceIndex_maps_QES_on_validate()
+    public async Task EdocLongTermSigningJob_LT_embedded_ocsp_TrustedListServiceIndex_maps_QES_on_validate()
     {
         var (issuer, leaf, ocspDer) = CreateIssuerLeafAndIssuerSignedOcsp("CA LT TSL", "Signer LT TSL");
         using (issuer)
@@ -290,7 +290,7 @@ public class EdocLtOcspIntegrationTests
                 TrustedListServiceIndex = index,
             };
 
-            var read = EdocValidation.OpenAndValidate(zip, policy);
+            var read = await EdocValidation.OpenAndValidateAsync(zip, policy);
             Assert.True(read.AllSignaturesValid, read.Signatures[0].Result.Error);
             var vr = read.Signatures[0].Result;
             Assert.True(vr.SigningCertificateListedInTrustedList);
@@ -346,7 +346,7 @@ public class EdocLtOcspIntegrationTests
                 TsaTrustAnchors = new X509Certificate2Collection(tsaAnchor),
             };
 
-            var read = EdocValidation.OpenAndValidate(zip, policy);
+            var read = await EdocValidation.OpenAndValidateAsync(zip, policy);
             Assert.True(read.AllSignaturesValid);
             Assert.True(read.Signatures[0].Result.SignatureTimestampImprintValid);
             Assert.True(read.Signatures[0].Result.TsaSignerCmsValid);

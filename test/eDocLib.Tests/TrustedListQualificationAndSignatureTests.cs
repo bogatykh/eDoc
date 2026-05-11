@@ -13,7 +13,7 @@ namespace eDocLib.Tests;
 public class TrustedListQualificationAndSignatureTests
 {
     [Fact]
-    public void TrustedListServiceIndex_merges_ServiceInformation_by_certificate_thumbprint()
+    public async Task TrustedListServiceIndex_merges_ServiceInformation_by_certificate_thumbprint()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=TSL service", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -53,7 +53,7 @@ public class TrustedListQualificationAndSignatureTests
     }
 
     [Fact]
-    public void TrustedListXmlSignatureVerifier_accepts_enveloped_RSA_SHA256_signature()
+    public async Task TrustedListXmlSignatureVerifier_accepts_enveloped_RSA_SHA256_signature()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=TSL XML signer", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -84,7 +84,7 @@ public class TrustedListQualificationAndSignatureTests
     }
 
     [Fact]
-    public void TrustedListReader_with_signature_verification_builds_index()
+    public async Task TrustedListReader_with_signature_verification_builds_index()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=TSL reader test", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -131,7 +131,7 @@ public class TrustedListQualificationAndSignatureTests
     }
 
     [Fact]
-    public void SignatureValidator_records_TSL_qualification_when_signer_listed()
+    public async Task SignatureValidator_records_TSL_qualification_when_signer_listed()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=eDoc TSL", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -163,7 +163,7 @@ public class TrustedListQualificationAndSignatureTests
             ValidateCertificateChain = false,
             TrustedListServiceIndex = index,
         };
-        var result = SignatureValidator.Validate(sig, new Dictionary<string, byte[]> { ["doc.txt"] = payload }, policy);
+        var result = await SignatureValidator.ValidateAsync(sig, new Dictionary<string, byte[]> { ["doc.txt"] = payload }, policy);
         Assert.True(result.Success, result.Error);
         Assert.True(result.SigningCertificateListedInTrustedList);
         Assert.NotNull(result.TrustedListServiceTypeIdentifiers);
@@ -176,7 +176,7 @@ public class TrustedListQualificationAndSignatureTests
     }
 
     [Fact]
-    public void TslQualificationMapper_maps_QCertESeal_and_status()
+    public async Task TslQualificationMapper_maps_QCertESeal_and_status()
     {
         var m = TslQualificationMapper.Map(
             new[] { TslQualificationMapper.ServiceTypeQCertESeal },
@@ -187,7 +187,7 @@ public class TrustedListQualificationAndSignatureTests
     }
 
     [Fact]
-    public void TslQualificationMapper_maps_both_QCertESign_and_QCertESeal_when_listed()
+    public async Task TslQualificationMapper_maps_both_QCertESign_and_QCertESeal_when_listed()
     {
         var m = TslQualificationMapper.Map(
             new[] { TslQualificationMapper.ServiceTypeQCertESign, TslQualificationMapper.ServiceTypeQCertESeal },
@@ -198,7 +198,7 @@ public class TrustedListQualificationAndSignatureTests
     }
 
     [Fact]
-    public void TslQualificationMapper_omitted_service_status_yields_null_granted_flag()
+    public async Task TslQualificationMapper_omitted_service_status_yields_null_granted_flag()
     {
         var m = TslQualificationMapper.Map(new[] { TslQualificationMapper.ServiceTypeQCertESign }, null);
         Assert.True(m.SuggestsQualifiedElectronicSignature);
@@ -207,7 +207,7 @@ public class TrustedListQualificationAndSignatureTests
     }
 
     [Fact]
-    public void TslQualificationMapper_honours_extra_national_uris()
+    public async Task TslQualificationMapper_honours_extra_national_uris()
     {
         const string nationalQes = "http://national.example/trstsvc/qes";
         const string nationalActive = "http://national.example/tsl/service-active";
@@ -222,7 +222,7 @@ public class TrustedListQualificationAndSignatureTests
     }
 
     [Fact]
-    public void SignatureValidator_RequireTrustedListServiceStatusGranted_fails_when_status_not_granted_like()
+    public async Task SignatureValidator_RequireTrustedListServiceStatusGranted_fails_when_status_not_granted_like()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=TSL status", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -254,14 +254,14 @@ public class TrustedListQualificationAndSignatureTests
             TrustedListServiceIndex = index,
             RequireTrustedListServiceStatusGranted = true,
         };
-        var result = SignatureValidator.Validate(sig, new Dictionary<string, byte[]> { ["doc.txt"] = payload }, policy);
+        var result = await SignatureValidator.ValidateAsync(sig, new Dictionary<string, byte[]> { ["doc.txt"] = payload }, policy);
         Assert.False(result.Success);
         Assert.True(result.SigningCertificateListedInTrustedList);
         Assert.False(result.TrustedListQualificationIndicators!.ServiceStatusIsGranted);
     }
 
     [Fact]
-    public void SignatureValidator_fails_when_require_listed_and_signer_not_in_TSL()
+    public async Task SignatureValidator_fails_when_require_listed_and_signer_not_in_TSL()
     {
         using var rsaSigner = RSA.Create(2048);
         var reqSigner = new CertificateRequest("CN=signer", rsaSigner, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -297,7 +297,7 @@ public class TrustedListQualificationAndSignatureTests
             TrustedListServiceIndex = index,
             RequireSigningCertificateListedInTrustedList = true,
         };
-        var result = SignatureValidator.Validate(sig, new Dictionary<string, byte[]> { ["doc.txt"] = payload }, policy);
+        var result = await SignatureValidator.ValidateAsync(sig, new Dictionary<string, byte[]> { ["doc.txt"] = payload }, policy);
         Assert.False(result.Success);
         Assert.False(result.SigningCertificateListedInTrustedList);
     }

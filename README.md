@@ -45,7 +45,7 @@
 
 ### Configuration helpers
 
-- **`EdocLibConfig.Default`**, **`EdocLibConfigBuilder.CreateDefault()`**, **`Edoc.Open`** / **`Edoc.OpenAndValidate`**, **`TimestampResponderRegistry.RegisterFrom`**, **`EdocLibConfig.ResolveFetchDeltaCrlViaFreshestCdp`**. Map host configuration into a builder or your own snapshot.
+- **`EdocLibConfig.Default`**, **`EdocLibConfigBuilder.CreateDefault()`**, **`Edoc.Open`** / **`Edoc.OpenAndValidateAsync`**, **`TimestampResponderRegistry.RegisterFrom`**, **`EdocLibConfig.ResolveFetchDeltaCrlViaFreshestCdp`**. Map host configuration into a builder or your own snapshot.
 
 ---
 
@@ -85,7 +85,7 @@ tools/                # Optional tooling (e.g. fixtures), not required at runtim
 
 | Folder / area | Role |
 |---------------|------|
-| **`eDocLib`** (project root — shared **`eDocLib`** namespace) | **`Edoc`** (incl. **`CreateNew`**, **`Open`**, **`OpenAndValidate`**), **`EdocValidation`**, **`Configuration.EdocLibConfig`**, **`Configuration.EdocLibConfigBuilder`**, **`EdocBasicSigningJob`**, **`EdocLongTermSigningJob`**, **`EdocArchiveSigningJob`**, **`DataFile`**, **`IContainer`**, **`IValidatableDocument`**, **`EdocException`** / **`EdocFailureKind`**, material profiles |
+| **`eDocLib`** (project root — shared **`eDocLib`** namespace) | **`Edoc`** (incl. **`CreateNew`**, **`Open`**, **`OpenAndValidateAsync`**), **`EdocValidation`**, **`Configuration.EdocLibConfig`**, **`Configuration.EdocLibConfigBuilder`**, **`EdocBasicSigningJob`**, **`EdocLongTermSigningJob`**, **`EdocArchiveSigningJob`**, **`DataFile`**, **`IContainer`**, **`IValidatableDocument`**, **`EdocException`** / **`EdocFailureKind`**, material profiles |
 | **`Asic/`** | ZIP ASiC-E reader/writer, manifest, format probe, payload spill helpers |
 | **`Asic/Xades/`** (namespace **`eDocLib.Asic.Xades`**) | **`XadesBesSigner`**, **`XadesSignature`**, **`XadesBesPreparedSignature`**, **`XadesSigningProfile`** / **`XadesRsaDigestPreference`** / **`XadesKeyKind`**, **`CertificateValuesWireFormat`**, C14N, algorithms, LT/LTA unsigned properties (types **`internal`** except the public signing surface above) |
 | **`Validation/`** | **`SignatureValidator`**, **`SignatureTrustPolicy`**, PKIX diagnostics, TSL reader/index/qualification, archive timestamp verification, **`DetachedSignatureVerifier`** |
@@ -167,7 +167,7 @@ foreach (var file in edoc.DataFiles)
 
 ```csharp
 await using var stream = File.OpenRead("document.edoc");
-var result = EdocValidation.OpenAndValidate(stream, SignatureTrustPolicy.CryptographyOnly);
+var result = await EdocValidation.OpenAndValidateAsync(stream, SignatureTrustPolicy.CryptographyOnly);
 // result.Edoc — loaded container; dispose when finished
 // result.AllSignaturesValid — false if there are no signatures
 using (result.Edoc)
@@ -176,19 +176,19 @@ using (result.Edoc)
 }
 ```
 
-**Open then validate** (same as `Edoc.OpenAndValidate` when you split the steps):
+**Open then validate** (same as `Edoc.OpenAndValidateAsync` when you split the steps):
 
 ```csharp
 using var edoc = Edoc.Open(EdocLibConfig.Default, "document.edoc");
-var result = edoc.Validate(SignatureTrustPolicy.CryptographyOnly);
-// or: EdocValidation.ValidateSignatures(edoc, policy);
+var result = await edoc.ValidateAsync(SignatureTrustPolicy.CryptographyOnly);
+// or: await EdocValidation.ValidateSignaturesAsync(edoc, policy);
 ```
 
 **Open + validate with explicit config:**
 
 ```csharp
 await using var stream = File.OpenRead("document.edoc");
-var result = Edoc.OpenAndValidate(EdocLibConfig.Default, stream, SignatureTrustPolicy.CryptographyOnly);
+var result = await Edoc.OpenAndValidateAsync(EdocLibConfig.Default, stream, SignatureTrustPolicy.CryptographyOnly);
 ```
 
 Signatures that are not **`XadesSignature`** fail verification with an explanatory error.
@@ -197,7 +197,7 @@ Signatures that are not **`XadesSignature`** fail verification with an explanato
 
 ```csharp
 using var stream = File.OpenRead("document.edoc");
-var result = Edoc.OpenAndValidate(EdocLibConfig.Default, stream, SignatureTrustPolicy.CryptographyOnly);
+var result = await Edoc.OpenAndValidateAsync(EdocLibConfig.Default, stream, SignatureTrustPolicy.CryptographyOnly);
 using (result.Edoc)
 {
     var policy = SignatureTrustPolicy.CryptographyOnly;
@@ -327,7 +327,7 @@ var policy = SignatureTrustPolicy.SystemAnchorsNoRevocation with
 policy.ValidateRevocationFetchConfiguration();
 
 using var edoc = Edoc.Open(EdocLibConfig.Default, "document.edoc");
-var result = edoc.Validate(policy);
+var result = await edoc.ValidateAsync(policy);
 ```
 
 Combine with **`TrustAnchorLoader`** (PEM / PFX / JKS), optional TSL-backed **`SignatureTrustPolicy`** fields, **`DirectoryRevocationDerCache`**, and **`TimestampResponderRegistry.RegisterFrom(config)`** for production deployments.

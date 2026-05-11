@@ -12,7 +12,7 @@ namespace eDocLib;
 public class EdocRoundTripTests
 {
     [Fact]
-    public void RawXmlSignature_round_trips_through_container()
+    public async Task RawXmlSignature_round_trips_through_container()
     {
         var xml = new XmlDocument();
         xml.LoadXml(
@@ -50,7 +50,7 @@ public class EdocRoundTripTests
     }
 
     [Fact]
-    public void XadesBes_sign_verify_and_edoc_round_trip()
+    public async Task XadesBes_sign_verify_and_edoc_round_trip()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=eDoc test", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -98,7 +98,7 @@ public class EdocRoundTripTests
             RevocationMode = X509RevocationMode.NoCheck,
             CustomTrustAnchors = new X509Certificate2Collection(cert),
         };
-        var validated = SignatureValidator.Validate(roundSig, new Dictionary<string, byte[]>
+        var validated = await SignatureValidator.ValidateAsync(roundSig, new Dictionary<string, byte[]>
         {
             ["doc.txt"] = payload,
         }, chainPolicy);
@@ -106,13 +106,13 @@ public class EdocRoundTripTests
         Assert.True(validated.CertificateChainValid);
 
         zip.Position = 0;
-        var report = EdocValidation.OpenAndValidate(zip, chainPolicy);
+        var report = await EdocValidation.OpenAndValidateAsync(zip, chainPolicy);
         Assert.True(report.AllSignaturesValid);
         Assert.Single(report.Signatures);
         Assert.True(report.Signatures[0].Result.Success);
 
         zip.Position = 0;
-        var readAgain = EdocValidation.OpenAndValidate(zip, chainPolicy);
+        var readAgain = await EdocValidation.OpenAndValidateAsync(zip, chainPolicy);
         var docReport = readAgain.BuildValidationReport(chainPolicy);
         Assert.True(docReport.AllSignaturesValid);
         Assert.Equal(global::eDocLib.Validation.Reporting.ValidationType.Root, docReport.Root.Type);
@@ -122,7 +122,7 @@ public class EdocRoundTripTests
     }
 
     [Fact]
-    public void ValidateSignatures_rejects_RawXmlSignature_as_unsupported_for_crypto()
+    public async Task ValidateSignatures_rejects_RawXmlSignature_as_unsupported_for_crypto()
     {
         var xml = new XmlDocument();
         xml.LoadXml(
@@ -147,7 +147,7 @@ public class EdocRoundTripTests
         var edoc = Edoc.CreateNew();
         edoc.AddSignature(new RawXmlSignature(xml));
 
-        var report = EdocValidation.ValidateSignatures(edoc);
+        var report = await EdocValidation.ValidateSignaturesAsync(edoc);
         Assert.Single(report.Signatures);
         Assert.False(report.Signatures[0].Result.Success);
         Assert.Contains("does not support", report.Signatures[0].Result.Error ?? string.Empty, StringComparison.OrdinalIgnoreCase);

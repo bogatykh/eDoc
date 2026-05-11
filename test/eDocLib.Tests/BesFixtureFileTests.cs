@@ -16,13 +16,13 @@ public class BesFixtureFileTests
     private const string MissingHint = "Missing fixture; regenerate: dotnet run --project tools/BesEdocFixtureGen/BesEdocFixtureGen.csproj";
 
     [Fact]
-    public void Single_edoc_file_open_validate_and_payload_matches_expected_bytes()
+    public async Task Single_edoc_file_open_validate_and_payload_matches_expected_bytes()
     {
         var path = BesFixturePath("synthetic-bes-single.edoc");
         Assert.True(File.Exists(path), MissingHint);
 
         using var fs = File.OpenRead(path);
-        var report = EdocValidation.OpenAndValidate(fs, SignatureTrustPolicy.CryptographyOnly);
+        var report = await EdocValidation.OpenAndValidateAsync(fs, SignatureTrustPolicy.CryptographyOnly);
         Assert.True(report.AllSignaturesValid, report.Signatures.ElementAtOrDefault(0)?.Result.Error);
         Assert.Single(report.Edoc.DataFiles);
 
@@ -33,7 +33,7 @@ public class BesFixtureFileTests
     }
 
     [Fact]
-    public void Asice_extension_same_zip_bytes_as_edoc_validates()
+    public async Task Asice_extension_same_zip_bytes_as_edoc_validates()
     {
         var edocPath = BesFixturePath("synthetic-bes-single.edoc");
         var asicePath = BesFixturePath("synthetic-bes-single.asice");
@@ -45,12 +45,12 @@ public class BesFixtureFileTests
         Assert.Equal(a, b);
 
         using var fs = File.OpenRead(asicePath);
-        var report = EdocValidation.OpenAndValidate(fs, SignatureTrustPolicy.CryptographyOnly);
+        var report = await EdocValidation.OpenAndValidateAsync(fs, SignatureTrustPolicy.CryptographyOnly);
         Assert.True(report.AllSignaturesValid, report.Signatures.ElementAtOrDefault(0)?.Result.Error);
     }
 
     [Fact]
-    public void Asic_extension_same_zip_bytes_as_edoc()
+    public async Task Asic_extension_same_zip_bytes_as_edoc()
     {
         var edocPath = BesFixturePath("synthetic-bes-single.edoc");
         var asicPath = BesFixturePath("synthetic-bes-single.asic");
@@ -60,13 +60,13 @@ public class BesFixtureFileTests
     }
 
     [Fact]
-    public void Rsa_sha384_fixture_uses_sha384_digest_uri_and_validates()
+    public async Task Rsa_sha384_fixture_uses_sha384_digest_uri_and_validates()
     {
         var path = BesFixturePath("synthetic-bes-rsa-sha384.edoc");
         Assert.True(File.Exists(path), MissingHint);
 
         using var fs = File.OpenRead(path);
-        var report = EdocValidation.OpenAndValidate(fs, SignatureTrustPolicy.CryptographyOnly);
+        var report = await EdocValidation.OpenAndValidateAsync(fs, SignatureTrustPolicy.CryptographyOnly);
         Assert.True(report.AllSignaturesValid, report.Signatures.ElementAtOrDefault(0)?.Result.Error);
 
         var xs = Assert.IsType<AsicSignature>(report.Edoc.Signatures.ElementAt(0));
@@ -78,7 +78,7 @@ public class BesFixtureFileTests
     }
 
     [Fact]
-    public void Ecdsa_p256_fixture_validates_against_bundled_ecdsa_anchor()
+    public async Task Ecdsa_p256_fixture_validates_against_bundled_ecdsa_anchor()
     {
         var edocPath = BesFixturePath("synthetic-bes-ecdsa-p256.edoc");
         var anchorPath = BesFixturePath("synthetic-bes-ecdsa-p256-anchor.cer");
@@ -94,7 +94,7 @@ public class BesFixtureFileTests
         };
 
         using var fs = File.OpenRead(edocPath);
-        var report = EdocValidation.OpenAndValidate(fs, policy);
+        var report = await EdocValidation.OpenAndValidateAsync(fs, policy);
         Assert.True(report.AllSignaturesValid, report.Signatures.ElementAtOrDefault(0)?.Result.Error);
         var xs = Assert.IsType<AsicSignature>(report.Edoc.Signatures.ElementAt(0));
         Assert.Equal(XadesSignatureAlgorithms.EcdsaWithSha256, xs.SignatureMethod);
@@ -102,7 +102,7 @@ public class BesFixtureFileTests
     }
 
     [Fact]
-    public void Two_parallel_signatures_on_disk_both_valid_with_co_signer_anchor()
+    public async Task Two_parallel_signatures_on_disk_both_valid_with_co_signer_anchor()
     {
         var path = BesFixturePath("synthetic-bes-parallel-sigs.edoc");
         var anchorA = BesFixturePath("synthetic-bes-anchor.cer");
@@ -122,7 +122,7 @@ public class BesFixtureFileTests
         };
 
         using var fs = File.OpenRead(path);
-        var report = EdocValidation.OpenAndValidate(fs, policy);
+        var report = await EdocValidation.OpenAndValidateAsync(fs, policy);
         Assert.Equal(2, report.Signatures.Count);
         Assert.True(report.AllSignaturesValid, string.Join("; ", report.Signatures.Select(s => s.Result.Error)));
         Assert.All(report.Signatures, s => Assert.True(s.Result.CertificateChainValid));
@@ -130,13 +130,13 @@ public class BesFixtureFileTests
     }
 
     [Fact]
-    public void Multi_file_fixture_open_validate_and_named_entries_match()
+    public async Task Multi_file_fixture_open_validate_and_named_entries_match()
     {
         var path = BesFixturePath("synthetic-bes-multi.edoc");
         Assert.True(File.Exists(path), MissingHint);
 
         using var fs = File.OpenRead(path);
-        var report = EdocValidation.OpenAndValidate(fs, SignatureTrustPolicy.CryptographyOnly);
+        var report = await EdocValidation.OpenAndValidateAsync(fs, SignatureTrustPolicy.CryptographyOnly);
         Assert.True(report.AllSignaturesValid, report.Signatures.ElementAtOrDefault(0)?.Result.Error);
         Assert.Equal(3, report.Edoc.DataFiles.Count);
 
@@ -147,13 +147,13 @@ public class BesFixtureFileTests
     }
 
     [Fact]
-    public void Empty_payload_fixture_validates_and_reads_zero_bytes()
+    public async Task Empty_payload_fixture_validates_and_reads_zero_bytes()
     {
         var path = BesFixturePath("synthetic-bes-empty.edoc");
         Assert.True(File.Exists(path), MissingHint);
 
         using var fs = File.OpenRead(path);
-        var report = EdocValidation.OpenAndValidate(fs, SignatureTrustPolicy.CryptographyOnly);
+        var report = await EdocValidation.OpenAndValidateAsync(fs, SignatureTrustPolicy.CryptographyOnly);
         Assert.True(report.AllSignaturesValid, report.Signatures.ElementAtOrDefault(0)?.Result.Error);
         var df = Assert.Single(report.Edoc.DataFiles);
         Assert.Equal("empty.dat", df.Name);
@@ -161,7 +161,7 @@ public class BesFixtureFileTests
     }
 
     [Fact]
-    public void Unicode_relative_path_fixture_round_trips_name_and_payload()
+    public async Task Unicode_relative_path_fixture_round_trips_name_and_payload()
     {
         var path = BesFixturePath("synthetic-bes-unicode-path.edoc");
         Assert.True(File.Exists(path), MissingHint);
@@ -170,7 +170,7 @@ public class BesFixtureFileTests
         var expectedPayload = "unicode-path-payload"u8.ToArray();
 
         using var fs = File.OpenRead(path);
-        var report = EdocValidation.OpenAndValidate(fs, SignatureTrustPolicy.CryptographyOnly);
+        var report = await EdocValidation.OpenAndValidateAsync(fs, SignatureTrustPolicy.CryptographyOnly);
         Assert.True(report.AllSignaturesValid, report.Signatures.ElementAtOrDefault(0)?.Result.Error);
         var df = Assert.Single(report.Edoc.DataFiles);
         Assert.Equal(expectedName, df.Name);
@@ -178,7 +178,7 @@ public class BesFixtureFileTests
     }
 
     [Fact]
-    public void Anchor_cert_validates_signing_chain_when_policy_requires_pkix()
+    public async Task Anchor_cert_validates_signing_chain_when_policy_requires_pkix()
     {
         var edocPath = BesFixturePath("synthetic-bes-single.edoc");
         var anchorPath = BesFixturePath("synthetic-bes-anchor.cer");
@@ -194,7 +194,7 @@ public class BesFixtureFileTests
             CustomTrustAnchors = new X509Certificate2Collection(anchor),
         };
 
-        var report = EdocValidation.OpenAndValidate(fs, policy);
+        var report = await EdocValidation.OpenAndValidateAsync(fs, policy);
         Assert.True(report.AllSignaturesValid, report.Signatures.ElementAtOrDefault(0)?.Result.Error);
         Assert.True(report.Signatures[0].Result.CertificateChainValid);
     }

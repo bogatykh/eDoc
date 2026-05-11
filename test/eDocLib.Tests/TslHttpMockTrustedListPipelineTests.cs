@@ -103,7 +103,7 @@ public class TslHttpMockTrustedListPipelineTests
             ValidateCertificateChain = false,
             TrustedListServiceIndex = index,
         };
-        var result = SignatureValidator.Validate(sig, new Dictionary<string, byte[]> { ["doc.txt"] = payload }, policy);
+        var result = await SignatureValidator.ValidateAsync(sig, new Dictionary<string, byte[]> { ["doc.txt"] = payload }, policy);
         Assert.True(result.Success, result.Error);
         Assert.True(result.SigningCertificateListedInTrustedList);
         Assert.Contains(typeId, result.TrustedListServiceTypeIdentifiers!, StringComparer.OrdinalIgnoreCase);

@@ -13,7 +13,7 @@ public class LtFixtureOpenAndValidateTests
         Path.Combine(AppContext.BaseDirectory, "Fixtures", "lt", name);
 
     [Fact]
-    public void OpenAndValidate_synthetic_lt_fixture_succeeds_with_bundled_anchor()
+    public async Task OpenAndValidate_synthetic_lt_fixture_succeeds_with_bundled_anchor()
     {
         var edocPath = FixturePath("synthetic-ocsp-lt.edoc");
         var anchorPath = FixturePath("synthetic-ocsp-lt-anchor.cer");
@@ -31,14 +31,14 @@ public class LtFixtureOpenAndValidateTests
             StrictEmbeddedOcspValidateResponderCertificateChain = true,
         };
 
-        var read = EdocValidation.OpenAndValidate(fs, policy);
+        var read = await EdocValidation.OpenAndValidateAsync(fs, policy);
         Assert.True(read.AllSignaturesValid, read.Signatures.ElementAtOrDefault(0)?.Result.Error);
         Assert.True(read.Signatures[0].Result.Success);
         Assert.True(read.Signatures[0].Result.UnsignedRevocationArtifactsValid);
     }
 
     [Fact]
-    public void BuildValidationReport_synthetic_lt_fixture_shows_qualified_profile_and_revocation_passed()
+    public async Task BuildValidationReport_synthetic_lt_fixture_shows_qualified_profile_and_revocation_passed()
     {
         var edocPath = FixturePath("synthetic-ocsp-lt.edoc");
         var anchorPath = FixturePath("synthetic-ocsp-lt-anchor.cer");
@@ -56,7 +56,7 @@ public class LtFixtureOpenAndValidateTests
             StrictEmbeddedOcspValidateResponderCertificateChain = true,
         };
 
-        var read = EdocValidation.OpenAndValidate(fs, policy);
+        var read = await EdocValidation.OpenAndValidateAsync(fs, policy);
         Assert.True(read.AllSignaturesValid);
 
         var report = read.BuildValidationReport(policy);

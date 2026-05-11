@@ -10,7 +10,7 @@ namespace eDocLib.Tests;
 public class EdocPayloadExtentSigningTests
 {
     [Fact]
-    public void Zero_byte_payload_still_signs_and_verifies()
+    public async Task Zero_byte_payload_still_signs_and_verifies()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=empty-payload", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -31,12 +31,12 @@ public class EdocPayloadExtentSigningTests
         using var zip = new MemoryStream();
         edoc.Save(zip);
         zip.Position = 0;
-        var report = EdocValidation.OpenAndValidate(zip, SignatureTrustPolicy.CryptographyOnly);
+        var report = await EdocValidation.OpenAndValidateAsync(zip, SignatureTrustPolicy.CryptographyOnly);
         Assert.True(report.AllSignaturesValid, report.Signatures[0].Result.Error);
     }
 
     [Fact]
-    public void Medium_sized_payload_deterministic_pattern_round_trip()
+    public async Task Medium_sized_payload_deterministic_pattern_round_trip()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=large-ish", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -60,7 +60,7 @@ public class EdocPayloadExtentSigningTests
         edoc.Save(zip);
         zip.Position = 0;
 
-        var report = EdocValidation.OpenAndValidate(zip, SignatureTrustPolicy.CryptographyOnly);
+        var report = await EdocValidation.OpenAndValidateAsync(zip, SignatureTrustPolicy.CryptographyOnly);
         Assert.True(report.AllSignaturesValid, report.Signatures[0].Result.Error);
     }
 }

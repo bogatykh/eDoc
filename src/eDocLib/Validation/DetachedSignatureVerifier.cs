@@ -16,10 +16,28 @@ internal static class DetachedSignatureVerifier
     public static bool TryVerifyReferenceDigests(
         XadesSignature signature,
         IReadOnlyDictionary<string, byte[]> payloadByRelativeUri,
+        out string? error) =>
+        TryVerifyReferenceDigests(
+            signature,
+            new InMemoryPayloadSource(payloadByRelativeUri ?? throw new ArgumentNullException(nameof(payloadByRelativeUri))),
+            out error);
+
+    /// <summary>
+    /// Attempts to verify reference digests using the streaming payload abstraction.
+    /// </summary>
+    /// <remarks>
+    /// References without an XML transform chain hash the payload incrementally from the source stream, so the
+    /// entire payload never has to be present in a single byte buffer. References with transforms still buffer
+    /// (the System.Security.Cryptography.Xml transform API consumes an in-memory representation), but the
+    /// buffering happens only for the affected reference rather than for every container payload.
+    /// </remarks>
+    internal static bool TryVerifyReferenceDigests(
+        XadesSignature signature,
+        IValidationPayloadSource payloadSource,
         out string? error)
     {
         ArgumentNullException.ThrowIfNull(signature);
-        ArgumentNullException.ThrowIfNull(payloadByRelativeUri);
+        ArgumentNullException.ThrowIfNull(payloadSource);
 
         error = null;
         var signedXml = signature.SignedXmlCore;
@@ -40,7 +58,7 @@ internal static class DetachedSignatureVerifier
 
         foreach (Reference reference in signedXml.SignedInfo.References.Cast<Reference>())
         {
-            if (!TryVerifyReference(reference, doc, payloadByRelativeUri, out error))
+            if (!TryVerifyReference(reference, doc, payloadSource, out error))
             {
                 return false;
             }
@@ -60,10 +78,22 @@ internal static class DetachedSignatureVerifier
         XadesSignature signature,
         IReadOnlyDictionary<string, byte[]> payloadByRelativeUri,
         out string? error,
+        SignatureTrustPolicy? trustPolicy = null) =>
+        TryVerify(
+            signature,
+            new InMemoryPayloadSource(payloadByRelativeUri ?? throw new ArgumentNullException(nameof(payloadByRelativeUri))),
+            out error,
+            trustPolicy);
+
+    /// <inheritdoc cref="TryVerify(XadesSignature, IReadOnlyDictionary{string, byte[]}, out string?, SignatureTrustPolicy?)"/>
+    internal static bool TryVerify(
+        XadesSignature signature,
+        IValidationPayloadSource payloadSource,
+        out string? error,
         SignatureTrustPolicy? trustPolicy = null)
     {
         ArgumentNullException.ThrowIfNull(signature);
-        ArgumentNullException.ThrowIfNull(payloadByRelativeUri);
+        ArgumentNullException.ThrowIfNull(payloadSource);
 
         error = null;
         var signedXml = signature.SignedXmlCore;
@@ -82,7 +112,7 @@ internal static class DetachedSignatureVerifier
             return false;
         }
 
-        if (!TryVerifyReferenceDigests(signature, payloadByRelativeUri, out error))
+        if (!TryVerifyReferenceDigests(signature, payloadSource, out error))
         {
             return false;
         }
@@ -227,17 +257,26 @@ internal static class DetachedSignatureVerifier
         return TryVerify(xs, payloadByRelativeUri, out error, trustPolicy);
     }
 
-    /// <summary>Attempts to verify reference.</summary>
+    /// <summary>
+    /// Attempts to verify a single <c>ds:Reference</c> against the supplied payload source.
+    /// </summary>
+    /// <remarks>
+    /// Hashes the payload incrementally from the stream when the reference has no XML transform chain;
+    /// for references with transforms, buffers the payload (the transform API requires an in-memory representation).
+    /// </remarks>
     private static bool TryVerifyReference(
         Reference reference,
         XmlDocument document,
-        IReadOnlyDictionary<string, byte[]> payloadByRelativeUri,
+        IValidationPayloadSource payloadSource,
         out string? error)
     {
         error = null;
         var uri = reference.Uri ?? string.Empty;
 
-        byte[] bytes;
+        using var hashAlg = CreateHashAlgorithm(reference.DigestMethod);
+        var expected = GetDigestBytes(reference);
+
+        byte[] actual;
         if (uri.StartsWith("#", StringComparison.Ordinal))
         {
             var id = uri[1..];
@@ -248,22 +287,29 @@ internal static class DetachedSignatureVerifier
                 return false;
             }
 
-            bytes = ApplyTransforms(reference, target);
+            var bytes = ApplyTransforms(reference, target);
+            actual = hashAlg.ComputeHash(bytes);
         }
         else
         {
-            if (!payloadByRelativeUri.TryGetValue(uri, out var payload))
+            if (!payloadSource.TryOpen(uri, out var payloadStream))
             {
                 error = $"Missing payload for reference URI '{uri}'.";
                 return false;
             }
 
-            bytes = ApplyTransforms(reference, payload);
+            if (reference.TransformChain.Count == 0)
+            {
+                actual = hashAlg.ComputeHash(payloadStream);
+            }
+            else
+            {
+                var buffered = ReadAllBytes(payloadStream);
+                var transformed = ApplyTransforms(reference, buffered);
+                actual = hashAlg.ComputeHash(transformed);
+            }
         }
 
-        using var hashAlg = CreateHashAlgorithm(reference.DigestMethod);
-        var expected = GetDigestBytes(reference);
-        var actual = hashAlg.ComputeHash(bytes);
         if (!CryptographicOperations.FixedTimeEquals(actual, expected))
         {
             error = $"Digest mismatch for reference URI '{uri}'.";
@@ -271,6 +317,18 @@ internal static class DetachedSignatureVerifier
         }
 
         return true;
+    }
+
+    private static byte[] ReadAllBytes(Stream stream)
+    {
+        if (stream is MemoryStream ms && ms.TryGetBuffer(out var seg) && seg.Offset == 0 && seg.Count == ms.Length)
+        {
+            return seg.Array!.Length == seg.Count ? seg.Array! : ms.ToArray();
+        }
+
+        using var copy = new MemoryStream();
+        stream.CopyTo(copy);
+        return copy.ToArray();
     }
 
     /// <summary>Applies transforms.</summary>

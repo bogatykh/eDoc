@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Threading.Tasks;
 using eDocLib;
 using eDocLib.Asic.Container;
 using eDocLib.Validation;
@@ -119,7 +120,7 @@ public class EdocParityFeaturesTests
     }
 
     [Fact]
-    public void IValidatableDocument_Validate_delegates_to_EdocValidation()
+    public async Task IValidatableDocument_Validate_delegates_to_EdocValidation()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=val", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -135,7 +136,7 @@ public class EdocParityFeaturesTests
         edoc.AddSignature(sig);
         IValidatableDocument validatable = edoc;
 
-        var report = validatable.Validate(SignatureTrustPolicy.CryptographyOnly);
+        var report = await validatable.ValidateAsync(SignatureTrustPolicy.CryptographyOnly);
         Assert.True(report.AllSignaturesValid);
     }
 }

@@ -12,7 +12,7 @@ namespace eDocLib;
 public class XadesCertificateValuesTests
 {
     [Fact]
-    public void AppendUnsignedCertificateValues_adds_encapsulated_x509_under_CertificateValues()
+    public async Task AppendUnsignedCertificateValues_adds_encapsulated_x509_under_CertificateValues()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=cv-bes", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -72,7 +72,7 @@ public class XadesCertificateValuesTests
     }
 
     [Fact]
-    public void AppendUnsignedCertificateValuesPkcs7_writes_other_certificate_and_round_trips_import()
+    public async Task AppendUnsignedCertificateValuesPkcs7_writes_other_certificate_and_round_trips_import()
     {
         using var rsa1 = RSA.Create(2048);
         using var rsa2 = RSA.Create(2048);

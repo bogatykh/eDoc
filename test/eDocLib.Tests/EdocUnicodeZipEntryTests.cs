@@ -10,7 +10,7 @@ namespace eDocLib.Tests;
 public class EdocUnicodeZipEntryTests
 {
     [Fact]
-    public void Unicode_attachment_names_preserved_in_zip_round_trip()
+    public async Task Unicode_attachment_names_preserved_in_zip_round_trip()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=unicode-path", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -33,7 +33,7 @@ public class EdocUnicodeZipEntryTests
         Assert.Single(loaded.DataFiles);
         Assert.Equal(relativeName, loaded.DataFiles.First().Name);
 
-        var report = EdocValidation.ValidateSignatures(loaded, SignatureTrustPolicy.CryptographyOnly);
+        var report = await EdocValidation.ValidateSignaturesAsync(loaded, SignatureTrustPolicy.CryptographyOnly);
         Assert.True(report.AllSignaturesValid, report.Signatures[0].Result.Error);
     }
 }

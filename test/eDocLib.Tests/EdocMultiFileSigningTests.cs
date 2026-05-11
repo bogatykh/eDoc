@@ -11,7 +11,7 @@ namespace eDocLib.Tests;
 public class EdocMultiFileSigningTests
 {
     [Fact]
-    public void Three_payload_files_single_signature_round_trip_validates()
+    public async Task Three_payload_files_single_signature_round_trip_validates()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=multi-file", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -41,7 +41,7 @@ public class EdocMultiFileSigningTests
         edoc.Save(zip);
         zip.Position = 0;
 
-        var report = EdocValidation.OpenAndValidate(zip, SignatureTrustPolicy.CryptographyOnly);
+        var report = await EdocValidation.OpenAndValidateAsync(zip, SignatureTrustPolicy.CryptographyOnly);
         Assert.True(report.AllSignaturesValid, report.Signatures.Count > 0 ? report.Signatures[0].Result.Error : "no sig");
     }
 }

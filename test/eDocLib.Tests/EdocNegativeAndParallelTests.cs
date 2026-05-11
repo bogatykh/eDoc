@@ -15,17 +15,17 @@ namespace eDocLib;
 public class EdocNegativeAndParallelTests
 {
     [Fact]
-    public void N01_corrupted_payload_fails_signature_verification()
+    public async Task N01_corrupted_payload_fails_signature_verification()
     {
         var (zipBytes, _) = CreateSignedOneFileEdoc("hello eDoc"u8.ToArray());
         var corrupted = ZipTestHelpers.CorruptEntryPayload(zipBytes, "doc.txt", xorByte: 0x01);
-        var report = EdocValidation.OpenAndValidate(new MemoryStream(corrupted), SignatureTrustPolicy.CryptographyOnly);
+        var report = await EdocValidation.OpenAndValidateAsync(new MemoryStream(corrupted), SignatureTrustPolicy.CryptographyOnly);
         Assert.False(report.AllSignaturesValid);
         Assert.Contains("Digest mismatch", report.Signatures[0].Result.Error ?? string.Empty, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void N02_manifest_lists_missing_file_throws_on_read()
+    public async Task N02_manifest_lists_missing_file_throws_on_read()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=t", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -48,7 +48,7 @@ public class EdocNegativeAndParallelTests
     }
 
     [Fact]
-    public void N03_wrong_first_zip_entry_throws()
+    public async Task N03_wrong_first_zip_entry_throws()
     {
         using var ms = new MemoryStream();
         using (var zos = new ZipOutputStream(ms) { IsStreamOwner = false })
@@ -75,7 +75,7 @@ public class EdocNegativeAndParallelTests
     }
 
     [Fact]
-    public void N04_duplicate_data_file_name_in_zip_throws()
+    public async Task N04_duplicate_data_file_name_in_zip_throws()
     {
         var payload = "a"u8.ToArray();
         var manifest = new OasisManifest();
@@ -86,7 +86,7 @@ public class EdocNegativeAndParallelTests
     }
 
     [Fact]
-    public void C07_parallel_two_Xades_signatures_both_validate()
+    public async Task C07_parallel_two_Xades_signatures_both_validate()
     {
         using var rsa1 = RSA.Create(2048);
         using var rsa2 = RSA.Create(2048);
@@ -115,7 +115,7 @@ public class EdocNegativeAndParallelTests
         edoc.Save(zip);
         zip.Position = 0;
 
-        var report = EdocValidation.OpenAndValidate(zip, SignatureTrustPolicy.CryptographyOnly);
+        var report = await EdocValidation.OpenAndValidateAsync(zip, SignatureTrustPolicy.CryptographyOnly);
         Assert.Equal(2, report.Signatures.Count);
         Assert.True(report.AllSignaturesValid);
         foreach (var s in report.Signatures)

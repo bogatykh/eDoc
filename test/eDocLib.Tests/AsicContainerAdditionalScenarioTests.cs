@@ -22,7 +22,7 @@ namespace eDocLib.Tests;
 public class AsicContainerAdditionalScenarioTests
 {
     [Fact]
-    public void Mimetype_entry_with_utf8_bom_loads_and_validates()
+    public async Task Mimetype_entry_with_utf8_bom_loads_and_validates()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=bom-mime", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -62,12 +62,12 @@ public class AsicContainerAdditionalScenarioTests
         }
 
         ms.Position = 0;
-        var report = EdocValidation.OpenAndValidate(ms, SignatureTrustPolicy.CryptographyOnly);
+        var report = await EdocValidation.OpenAndValidateAsync(ms, SignatureTrustPolicy.CryptographyOnly);
         Assert.True(report.AllSignaturesValid, report.Signatures.ElementAtOrDefault(0)?.Result.Error);
     }
 
     [Fact]
-    public void Payload_file_present_in_zip_but_not_in_manifest_rejected_on_load()
+    public async Task Payload_file_present_in_zip_but_not_in_manifest_rejected_on_load()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=extra", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -96,7 +96,7 @@ public class AsicContainerAdditionalScenarioTests
     }
 
     [Fact]
-    public void Malformed_manifest_xml_throws_on_load()
+    public async Task Malformed_manifest_xml_throws_on_load()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=bad-man", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -117,7 +117,7 @@ public class AsicContainerAdditionalScenarioTests
     }
 
     [Fact]
-    public void Truncated_signature_xml_throws_on_load()
+    public async Task Truncated_signature_xml_throws_on_load()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=trunc-sig", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -141,7 +141,7 @@ public class AsicContainerAdditionalScenarioTests
     }
 
     [Fact]
-    public void Second_zip_entry_with_same_signatures_path_invalid_xml_throws_on_load()
+    public async Task Second_zip_entry_with_same_signatures_path_invalid_xml_throws_on_load()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=dup-sig", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -166,7 +166,7 @@ public class AsicContainerAdditionalScenarioTests
     }
 
     [Fact]
-    public void Reference_uri_percent_encoded_does_not_match_zip_entry_name_fails_validation()
+    public async Task Reference_uri_percent_encoded_does_not_match_zip_entry_name_fails_validation()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=uri-enc", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -187,14 +187,14 @@ public class AsicContainerAdditionalScenarioTests
             new Dictionary<string, byte[]> { [fileName] = payload.ToArray() },
             new List<byte[]> { Encoding.UTF8.GetBytes(patched) });
 
-        var report = EdocValidation.OpenAndValidate(new MemoryStream(zip), SignatureTrustPolicy.CryptographyOnly);
+        var report = await EdocValidation.OpenAndValidateAsync(new MemoryStream(zip), SignatureTrustPolicy.CryptographyOnly);
         Assert.False(report.AllSignaturesValid);
         Assert.Contains("Missing payload", report.Signatures[0].Result.Error ?? string.Empty, StringComparison.Ordinal);
         Assert.Contains("%20", report.Signatures[0].Result.Error ?? string.Empty, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Unsupported_digest_method_uri_throws_NotSupportedException()
+    public async Task Unsupported_digest_method_uri_throws_NotSupportedException()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=bad-digest", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -214,11 +214,14 @@ public class AsicContainerAdditionalScenarioTests
             new Dictionary<string, byte[]> { ["doc.txt"] = payload.ToArray() },
             new List<byte[]> { Encoding.UTF8.GetBytes(broken) });
 
-        Assert.Throws<NotSupportedException>(() => EdocValidation.OpenAndValidate(new MemoryStream(zip), SignatureTrustPolicy.CryptographyOnly));
+        await Assert.ThrowsAsync<NotSupportedException>(async () =>
+                await EdocValidation.OpenAndValidateAsync(new MemoryStream(zip), SignatureTrustPolicy.CryptographyOnly)
+                    )
+            ;
     }
 
     [Fact]
-    public void Large_payload_round_trip_validates()
+    public async Task Large_payload_round_trip_validates()
     {
         const int len = 384 * 1024;
         var payload = new byte[len];
@@ -242,13 +245,13 @@ public class AsicContainerAdditionalScenarioTests
         edoc.Save(zip);
         zip.Position = 0;
 
-        var report = EdocValidation.OpenAndValidate(zip, SignatureTrustPolicy.CryptographyOnly);
+        var report = await EdocValidation.OpenAndValidateAsync(zip, SignatureTrustPolicy.CryptographyOnly);
         Assert.True(report.AllSignaturesValid, report.Signatures.ElementAtOrDefault(0)?.Result.Error);
     }
 
     /// <summary>First ZIP entry must be stored <c>mimetype</c> (some ASiC tooling incorrectly compresses it).</summary>
     [Fact]
-    public void Mimetype_entry_must_be_uncompressed_stored()
+    public async Task Mimetype_entry_must_be_uncompressed_stored()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=mime-def", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -294,7 +297,7 @@ public class AsicContainerAdditionalScenarioTests
     }
 
     [Fact]
-    public void Mimetype_body_whitespace_only_rejected_on_load()
+    public async Task Mimetype_body_whitespace_only_rejected_on_load()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=mime-ws", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -339,7 +342,7 @@ public class AsicContainerAdditionalScenarioTests
     }
 
     [Fact]
-    public void Manifest_duplicate_file_entry_full_path_throws_while_parsing()
+    public async Task Manifest_duplicate_file_entry_full_path_throws_while_parsing()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=dup-fe", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -367,7 +370,7 @@ public class AsicContainerAdditionalScenarioTests
     }
 
     [Fact]
-    public void Unsupported_signature_method_fails_validation_with_known_error_token()
+    public async Task Unsupported_signature_method_fails_validation_with_known_error_token()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=sig-meth", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -386,13 +389,13 @@ public class AsicContainerAdditionalScenarioTests
             new Dictionary<string, byte[]> { ["doc.txt"] = payload.ToArray() },
             new List<byte[]> { Encoding.UTF8.GetBytes(patched) });
 
-        var report = EdocValidation.OpenAndValidate(new MemoryStream(zip), SignatureTrustPolicy.CryptographyOnly);
+        var report = await EdocValidation.OpenAndValidateAsync(new MemoryStream(zip), SignatureTrustPolicy.CryptographyOnly);
         Assert.False(report.AllSignaturesValid);
         Assert.Contains("Unsupported SignatureMethod", report.Signatures[0].Result.Error ?? string.Empty, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void Detached_reference_uri_with_leading_slash_does_not_resolve_to_zip_entry_name()
+    public async Task Detached_reference_uri_with_leading_slash_does_not_resolve_to_zip_entry_name()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=slash-uri", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -411,7 +414,7 @@ public class AsicContainerAdditionalScenarioTests
             new Dictionary<string, byte[]> { ["doc.txt"] = payload.ToArray() },
             new List<byte[]> { Encoding.UTF8.GetBytes(patched) });
 
-        var report = EdocValidation.OpenAndValidate(new MemoryStream(zip), SignatureTrustPolicy.CryptographyOnly);
+        var report = await EdocValidation.OpenAndValidateAsync(new MemoryStream(zip), SignatureTrustPolicy.CryptographyOnly);
         Assert.False(report.AllSignaturesValid);
         Assert.Contains("Missing payload", report.Signatures[0].Result.Error ?? string.Empty, StringComparison.Ordinal);
         Assert.Contains("/doc.txt", report.Signatures[0].Result.Error ?? string.Empty, StringComparison.Ordinal);
@@ -422,7 +425,7 @@ public class AsicContainerAdditionalScenarioTests
     /// <see cref="Payload_file_present_in_zip_but_not_in_manifest_rejected_on_load"/> — this entry is not a payload path).
     /// </summary>
     [Fact]
-    public void Opaque_meta_inf_attachment_is_ignored_container_still_validates()
+    public async Task Opaque_meta_inf_attachment_is_ignored_container_still_validates()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=opaque-meta", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -468,14 +471,14 @@ public class AsicContainerAdditionalScenarioTests
         }
 
         ms.Position = 0;
-        var report = EdocValidation.OpenAndValidate(ms, SignatureTrustPolicy.CryptographyOnly);
+        var report = await EdocValidation.OpenAndValidateAsync(ms, SignatureTrustPolicy.CryptographyOnly);
         Assert.True(report.AllSignaturesValid, report.Signatures.ElementAtOrDefault(0)?.Result.Error);
         Assert.Single(report.Edoc.Signatures);
     }
 
     /// <summary>ASiC-E shell with data + manifest but no <c>META-INF/signatures*.xml</c> (cf. unsigned tooling outputs).</summary>
     [Fact]
-    public void Mimetype_manifest_payload_without_signature_entries_loads_unsigned_shell()
+    public async Task Mimetype_manifest_payload_without_signature_entries_loads_unsigned_shell()
     {
         var manifest = new OasisManifest();
         manifest.Add("solo.bin", "application/octet-stream");
@@ -491,7 +494,7 @@ public class AsicContainerAdditionalScenarioTests
         Assert.Equal("solo.bin", edoc.DataFiles.First().Name);
         Assert.Empty(edoc.Signatures);
 
-        var report = EdocValidation.ValidateSignatures(edoc, SignatureTrustPolicy.CryptographyOnly);
+        var report = await EdocValidation.ValidateSignaturesAsync(edoc, SignatureTrustPolicy.CryptographyOnly);
         Assert.False(report.HasSignatures);
         Assert.False(report.AllSignaturesValid);
     }
@@ -501,7 +504,7 @@ public class AsicContainerAdditionalScenarioTests
     /// uses case-insensitive matching, but attaching declared media-type uses exact dictionary lookup.
     /// </summary>
     [Fact]
-    public void When_manifest_full_path_casing_differs_from_zip_entry_media_type_from_manifest_is_applied_case_insensitively()
+    public async Task When_manifest_full_path_casing_differs_from_zip_entry_media_type_from_manifest_is_applied_case_insensitively()
     {
         var manifest = new OasisManifest();
         manifest.Add("DOC.TXT", "application/x-case-test");
@@ -519,7 +522,7 @@ public class AsicContainerAdditionalScenarioTests
 
     /// <summary>Malformed-looking but single-token media types (e.g. missing subtype slash) still surface as declared.</summary>
     [Fact]
-    public void Manifest_media_type_without_slash_still_applied_when_paths_match_exactly()
+    public async Task Manifest_media_type_without_slash_still_applied_when_paths_match_exactly()
     {
         var manifest = new OasisManifest();
         manifest.Add("note.txt", "textplain");

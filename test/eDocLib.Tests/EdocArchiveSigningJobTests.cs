@@ -43,7 +43,7 @@ public class EdocArchiveSigningJobTests
             CustomTrustAnchors = new X509Certificate2Collection(LocalSha256Rfc3161TimestampProvider.EmbeddedTsaCertificate),
         };
 
-        var report = EdocValidation.OpenAndValidate(zip, policy);
+        var report = await EdocValidation.OpenAndValidateAsync(zip, policy);
         Assert.True(report.AllSignaturesValid, report.Signatures[0].Result.Error);
         Assert.Equal(1, report.Signatures[0].Result.ArchiveTimeStampCount);
         Assert.True(report.Signatures[0].Result.ArchiveTimeStampsCmsValid);
@@ -84,7 +84,7 @@ public class EdocArchiveSigningJobTests
             CustomTrustAnchors = new X509Certificate2Collection(LocalSha256Rfc3161TimestampProvider.EmbeddedTsaCertificate),
         };
 
-        var report = EdocValidation.OpenAndValidate(zip, policy);
+        var report = await EdocValidation.OpenAndValidateAsync(zip, policy);
         Assert.True(report.AllSignaturesValid, report.Signatures[0].Result.Error);
         Assert.Equal(2, report.Signatures[0].Result.ArchiveTimeStampCount);
         Assert.True(report.Signatures[0].Result.ArchiveTimeStampImprintsValid);

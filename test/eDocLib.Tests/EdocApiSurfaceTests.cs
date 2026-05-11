@@ -15,7 +15,7 @@ namespace eDocLib.Tests;
 public class EdocApiSurfaceTests
 {
     [Fact]
-    public void EdocBuilder_round_trip_data_objects()
+    public async Task EdocBuilder_round_trip_data_objects()
     {
         using var pkg = Edoc.CreateNew();
         Assert.Equal(Edoc.DefaultFormatVersion, pkg.FormatVersion);
@@ -36,7 +36,7 @@ public class EdocApiSurfaceTests
     }
 
     [Fact]
-    public void RemoveDataObject_and_signature()
+    public async Task RemoveDataObject_and_signature()
     {
         using var pkg = Edoc.CreateNew();
         pkg.AddDataObject(new MemoryStream(Encoding.UTF8.GetBytes("x")), "x.txt", "text/plain");
@@ -62,7 +62,7 @@ public class EdocApiSurfaceTests
     }
 
     [Fact]
-    public void Edoc_save_rewinds_payload_streams_after_two_phase_prepare_sign()
+    public async Task Edoc_save_rewinds_payload_streams_after_two_phase_prepare_sign()
     {
         var payload = "stream-rewind"u8.ToArray();
         using var pkg = Edoc.CreateNew();
@@ -90,7 +90,7 @@ public class EdocApiSurfaceTests
     }
 
     [Fact]
-    public void EdocBasicSigningJob_RsaDigestPreference_flows_to_PrepareSign()
+    public async Task EdocBasicSigningJob_RsaDigestPreference_flows_to_PrepareSign()
     {
         using var pkg = Edoc.CreateNew();
         pkg.AddDataObject(new MemoryStream(Encoding.UTF8.GetBytes("p")), "doc.txt", "text/plain");
@@ -106,7 +106,7 @@ public class EdocApiSurfaceTests
     }
 
     [Fact]
-    public void Open_corrupt_zip_wraps_EdocException()
+    public async Task Open_corrupt_zip_wraps_EdocException()
     {
         var buf = Encoding.UTF8.GetBytes("not a zip");
         using var ms = new MemoryStream(buf);
@@ -115,7 +115,7 @@ public class EdocApiSurfaceTests
     }
 
     [Fact]
-    public void IsLikelyEdocContainer_detects_saved_package()
+    public async Task IsLikelyEdocContainer_detects_saved_package()
     {
         using var pkg = Edoc.CreateNew();
         pkg.AddDataObject(new MemoryStream(Encoding.UTF8.GetBytes("z")), "z.txt", "text/plain");
@@ -127,7 +127,7 @@ public class EdocApiSurfaceTests
     }
 
     [Fact]
-    public void EdocReadValidationResult_exposes_aggregate_validation_interface()
+    public async Task EdocReadValidationResult_exposes_aggregate_validation_interface()
     {
         using var pkg = Edoc.CreateNew();
         pkg.AddDataObject(new MemoryStream(Encoding.UTF8.GetBytes("z")), "z.txt", "text/plain");
@@ -139,7 +139,7 @@ public class EdocApiSurfaceTests
         var sigBytes = cert.GetRSAPrivateKey()!.SignData(prep.GetSignableBytes(), HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         job.Complete(prep, sigBytes);
 
-        var read = EdocValidation.ValidateSignatures(pkg, SignatureTrustPolicy.CryptographyOnly);
+        var read = await EdocValidation.ValidateSignaturesAsync(pkg, SignatureTrustPolicy.CryptographyOnly);
         IEdocContainerValidationResult agg = read;
         Assert.False(agg.HasWarnings);
         Assert.True(agg.AllSignaturesValid);
@@ -147,7 +147,7 @@ public class EdocApiSurfaceTests
     }
 
     [Fact]
-    public void EdocLibConfigBuilder_Create_Open_matches_Default_Open()
+    public async Task EdocLibConfigBuilder_Create_Open_matches_Default_Open()
     {
         using var pkg = Edoc.CreateNew();
         pkg.AddDataObject(new MemoryStream(Encoding.UTF8.GetBytes("q")), "q.txt", "text/plain");
@@ -164,13 +164,13 @@ public class EdocApiSurfaceTests
     }
 
     [Fact]
-    public void Default_config_is_stable_singleton()
+    public async Task Default_config_is_stable_singleton()
     {
         Assert.Same(EdocLibConfig.Default, EdocLibConfig.Default);
     }
 
     [Fact]
-    public void EdocLibInfo_reads_assembly_metadata()
+    public async Task EdocLibInfo_reads_assembly_metadata()
     {
         Assert.False(string.IsNullOrWhiteSpace(EdocLibInfo.InformationalVersion));
         Assert.False(string.IsNullOrWhiteSpace(EdocLibInfo.AssemblyVersion));
@@ -179,7 +179,7 @@ public class EdocApiSurfaceTests
     }
 
     [Fact]
-    public void EdocReadValidationResult_HasWarnings_when_signature_indeterminate()
+    public async Task EdocReadValidationResult_HasWarnings_when_signature_indeterminate()
     {
         var xml = new XmlDocument();
         xml.LoadXml(

@@ -1,7 +1,10 @@
+using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Security.Cryptography.Xml;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Xml;
 using Org.BouncyCastle.Cms;
 using Org.BouncyCastle.Tsp;
@@ -12,7 +15,7 @@ namespace eDocLib.Validation;
 
 /// <summary>
 /// Checks RFC 3161 tokens under XAdES-T <c>xades:SignatureTimeStamp</c> (imprint vs <c>SignatureValue</c>, optional CMS / PKIX)
-/// and archive tokens under <c>xades:ArchiveTimeStamp</c> via <see cref="TryVerifyTimeStampTokenDer"/>.
+/// and archive tokens under <c>xades:ArchiveTimeStamp</c> via <see cref="TryVerifyTimeStampTokenDerAsync"/>.
 /// </summary>
 internal static class SignatureTimestampVerifier
 {
@@ -76,47 +79,37 @@ internal static class SignatureTimestampVerifier
     /// <summary>
     /// Verifies one RFC 3161 DER time-stamp token (CMS signer checks and optional PKIX chain for the embedded TSA certificate).
     /// </summary>
-    /// <param name="tokenDer">DER-encoded RFC 3161 time-stamp token.</param>
-    /// <param name="policy">Trust policy used for TSA certificate chain validation.</param>
-    /// <param name="verifyCms">When <c>false</c> and <paramref name="verifyChain"/> is <c>false</c>, returns success without parsing.</param>
-    /// <param name="verifyChain">PKIX validation after CMS success (same roots policy as <see cref="SignatureTrustPolicy.ValidateTsaSignerChain"/>).</param>
-    /// <param name="error">Failure message when verification fails.</param>
-    /// <param name="cmsValid">Whether CMS signer verification succeeded when attempted.</param>
-    /// <param name="chainValid">Whether TSA certificate chain validation succeeded when attempted.</param>
-    /// <param name="certificateChain">TSA certificate chain diagnostics when chain validation ran.</param>
-    public static bool TryVerifyTimeStampTokenDer(
+    public static Task<TimeStampTokenDerVerifyResult> TryVerifyTimeStampTokenDerAsync(
         byte[] tokenDer,
         SignatureTrustPolicy policy,
         bool verifyCms,
         bool verifyChain,
-        out string? error,
-        out bool? cmsValid,
-        out bool? chainValid,
-        out IReadOnlyList<CertificateChainDiagnostic>? certificateChain)
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(tokenDer);
         ArgumentNullException.ThrowIfNull(policy);
-        error = null;
-        cmsValid = null;
-        chainValid = null;
-        certificateChain = null;
 
         if (!verifyCms && !verifyChain)
         {
-            return true;
+            return Task.FromResult(TimeStampTokenDerVerifyResult.Success(null, null, null));
         }
 
         if (!verifyCms && verifyChain)
         {
-            error = "Chain validation requires CMS verification for the time-stamp token.";
-            return false;
+            return Task.FromResult(TimeStampTokenDerVerifyResult.Fail(
+                "Chain validation requires CMS verification for the time-stamp token.",
+                null,
+                null,
+                null));
         }
 
         if (tokenDer.Length == 0)
         {
-            error = "Time-stamp token DER is empty.";
-            cmsValid = false;
-            return false;
+            return Task.FromResult(TimeStampTokenDerVerifyResult.Fail(
+                "Time-stamp token DER is empty.",
+                cmsValid: false,
+                chainValid: null,
+                chain: null));
         }
 
         TimeStampToken token;
@@ -126,13 +119,16 @@ internal static class SignatureTimestampVerifier
         }
         catch (Exception ex) when (ex is TspException or CmsException)
         {
-            error = "Failed to parse time-stamp token: " + ex.Message;
-            return false;
+            return Task.FromResult(TimeStampTokenDerVerifyResult.Fail(
+                "Failed to parse time-stamp token: " + ex.Message,
+                null,
+                null,
+                null));
         }
 
-        if (!TryGetTsaSignerCertificate(token, out DerX509Certificate? tsaSignerCert, out error) || tsaSignerCert == null)
+        if (!TryGetTsaSignerCertificate(token, out DerX509Certificate? tsaSignerCert, out var certErr) || tsaSignerCert == null)
         {
-            return false;
+            return Task.FromResult(TimeStampTokenDerVerifyResult.Fail(certErr ?? "TSA signer certificate missing.", null, null, null));
         }
 
         try
@@ -141,9 +137,11 @@ internal static class SignatureTimestampVerifier
         }
         catch (TspValidationException ex)
         {
-            error = "TSA certificate is not acceptable for time-stamping: " + ex.Message;
-            cmsValid = false;
-            return false;
+            return Task.FromResult(TimeStampTokenDerVerifyResult.Fail(
+                "TSA certificate is not acceptable for time-stamping: " + ex.Message,
+                cmsValid: false,
+                chainValid: null,
+                chain: null));
         }
 
         var signedData = token.ToCmsSignedData();
@@ -161,25 +159,35 @@ internal static class SignatureTimestampVerifier
         }
         catch (CmsException ex)
         {
-            error = "Time-stamp token CMS verification failed: " + ex.Message;
-            cmsValid = false;
-            return false;
+            return Task.FromResult(TimeStampTokenDerVerifyResult.Fail(
+                "Time-stamp token CMS verification failed: " + ex.Message,
+                cmsValid: false,
+                chainValid: null,
+                chain: null));
         }
 
         if (!verified)
         {
-            error = "Time-stamp token CMS signature does not verify with the embedded TSA certificate.";
-            cmsValid = false;
-            return false;
+            return Task.FromResult(TimeStampTokenDerVerifyResult.Fail(
+                "Time-stamp token CMS signature does not verify with the embedded TSA certificate.",
+                cmsValid: false,
+                chainValid: null,
+                chain: null));
         }
-
-        cmsValid = true;
 
         if (!verifyChain)
         {
-            return true;
+            return Task.FromResult(TimeStampTokenDerVerifyResult.Success(cmsValid: true, chainValid: null, chain: null));
         }
 
+        return VerifyChainAndOnlineAsync(policy, tsaSignerCert, cancellationToken);
+    }
+
+    private static async Task<TimeStampTokenDerVerifyResult> VerifyChainAndOnlineAsync(
+        SignatureTrustPolicy policy,
+        DerX509Certificate tsaSignerCert,
+        CancellationToken cancellationToken)
+    {
         using var dotnetTsa = new X509Certificate2(tsaSignerCert.GetEncoded());
         using var chain = new X509Chain();
         chain.ChainPolicy.RevocationFlag = X509RevocationFlag.ExcludeRoot;
@@ -191,29 +199,64 @@ internal static class SignatureTimestampVerifier
         X509ChainBuildHelpers.ApplyTrustAnchors(chain.ChainPolicy, tsaRoots);
 
         var chainBuilt = chain.Build(dotnetTsa);
-        certificateChain = CertificateChainDiagnostics.FromChain(chain);
+        var certificateChain = CertificateChainDiagnostics.FromChain(chain);
         if (!chainBuilt)
         {
-            error = "TSA certificate chain validation failed: " + X509ChainBuildHelpers.FormatChainStatus(chain);
-            chainValid = false;
-            return false;
+            return TimeStampTokenDerVerifyResult.Fail(
+                "TSA certificate chain validation failed: " + X509ChainBuildHelpers.FormatChainStatus(chain),
+                cmsValid: true,
+                chainValid: false,
+                certificateChain);
         }
 
-        if (!ApplicationOnlineRevocation.TryVerifyIfRequired(
+        var onlineOutcome = await ApplicationOnlineRevocation.TryVerifyIfRequiredAsync(
                 policy,
                 dotnetTsa,
                 chain,
-                out var onlineRevocationError,
-                out _,
-                out _))
+                materialFetcher: null,
+                cancellationToken)
+            .ConfigureAwait(false);
+        if (!onlineOutcome.Ok)
         {
-            error = onlineRevocationError;
-            chainValid = false;
-            return false;
+            return TimeStampTokenDerVerifyResult.Fail(
+                onlineOutcome.Error ?? "Online revocation verification failed.",
+                cmsValid: true,
+                chainValid: false,
+                certificateChain);
         }
 
-        chainValid = true;
-        return true;
+        return TimeStampTokenDerVerifyResult.Success(cmsValid: true, chainValid: true, certificateChain);
+    }
+
+    /// <summary>
+    /// When <see cref="SignatureTrustPolicy.ValidateTsaSigner"/> or <see cref="SignatureTrustPolicy.ValidateTsaSignerChain"/> is set,
+    /// validates the CMS time-stamp token using BouncyCastle (and optionally builds a .NET PKIX chain for the TSA certificate).
+    /// </summary>
+    public static Task<TimeStampTokenDerVerifyResult> TryVerifyTsaTokenTrustAsync(
+        XmlDocument signatureDocument,
+        SignatureTrustPolicy policy,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(signatureDocument);
+        ArgumentNullException.ThrowIfNull(policy);
+
+        var wantCms = policy.ValidateTsaSigner || policy.ValidateTsaSignerChain;
+        if (!wantCms)
+        {
+            return Task.FromResult(TimeStampTokenDerVerifyResult.Success(null, null, null));
+        }
+
+        if (!TryGetEncapsulatedTimestampDer(signatureDocument, out var tokenDer, out var error))
+        {
+            return Task.FromResult(TimeStampTokenDerVerifyResult.Fail(error ?? "No encapsulated timestamp.", null, null, null));
+        }
+
+        return TryVerifyTimeStampTokenDerAsync(
+            tokenDer,
+            policy,
+            verifyCms: true,
+            verifyChain: policy.ValidateTsaSignerChain,
+            cancellationToken);
     }
 
     /// <summary>
@@ -250,59 +293,6 @@ internal static class SignatureTimestampVerifier
             error = "Failed to parse time-stamp token: " + ex.Message;
             return false;
         }
-    }
-
-    /// <summary>
-    /// When <see cref="SignatureTrustPolicy.ValidateTsaSigner"/> or <see cref="SignatureTrustPolicy.ValidateTsaSignerChain"/> is set,
-    /// validates the CMS time-stamp token using BouncyCastle (and optionally builds a .NET PKIX chain for the TSA certificate).
-    /// </summary>
-    /// <param name="signatureDocument">Signature XML document containing a signature timestamp token.</param>
-    /// <param name="policy">Trust policy that controls TSA signer and chain validation.</param>
-    /// <param name="error">Failure message when validation fails.</param>
-    /// <param name="tsaCmsValid">
-    /// <c>null</c> if not attempted; <c>false</c> if CMS/signer validation failed; <c>true</c> if it succeeded.
-    /// </param>
-    /// <param name="tsaChainValid">
-    /// <c>null</c> if chain validation was not requested or not reached; <c>false</c> if it failed after CMS success; <c>true</c> if it succeeded.
-    /// </param>
-    /// <param name="tsaCertificateChain">
-    /// Populated when <see cref="SignatureTrustPolicy.ValidateTsaSignerChain"/> is <c>true</c> after <see cref="X509Chain.Build"/> (success or failure).
-    /// </param>
-    public static bool TryVerifyTsaTokenTrust(
-        XmlDocument signatureDocument,
-        SignatureTrustPolicy policy,
-        out string? error,
-        out bool? tsaCmsValid,
-        out bool? tsaChainValid,
-        out IReadOnlyList<CertificateChainDiagnostic>? tsaCertificateChain)
-    {
-        ArgumentNullException.ThrowIfNull(signatureDocument);
-        ArgumentNullException.ThrowIfNull(policy);
-        error = null;
-        tsaCmsValid = null;
-        tsaChainValid = null;
-        tsaCertificateChain = null;
-
-        var wantCms = policy.ValidateTsaSigner || policy.ValidateTsaSignerChain;
-        if (!wantCms)
-        {
-            return true;
-        }
-
-        if (!TryGetEncapsulatedTimestampDer(signatureDocument, out var tokenDer, out error))
-        {
-            return false;
-        }
-
-        return TryVerifyTimeStampTokenDer(
-            tokenDer,
-            policy,
-            verifyCms: true,
-            verifyChain: policy.ValidateTsaSignerChain,
-            out error,
-            out tsaCmsValid,
-            out tsaChainValid,
-            out tsaCertificateChain);
     }
 
     /// <summary>Attempts to get signature value octets.</summary>

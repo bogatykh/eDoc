@@ -13,7 +13,7 @@ namespace eDocLib.Tests;
 public class EdocSignatureTrustChainTests
 {
     [Fact]
-    public void ValidateCertificateChain_without_trust_anchor_fails_for_self_signed_signer()
+    public async Task ValidateCertificateChain_without_trust_anchor_fails_for_self_signed_signer()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=self-chain-fail", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -37,14 +37,14 @@ public class EdocSignatureTrustChainTests
             RevocationMode = X509RevocationMode.NoCheck,
         };
 
-        var report = EdocValidation.OpenAndValidate(zip, policy);
+        var report = await EdocValidation.OpenAndValidateAsync(zip, policy);
         Assert.False(report.AllSignaturesValid);
         Assert.False(report.Signatures[0].Result.Success);
         Assert.Contains("chain", report.Signatures[0].Result.Error ?? string.Empty, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public void ValidateCertificateChain_with_custom_anchor_succeeds_for_same_self_signed_signer()
+    public async Task ValidateCertificateChain_with_custom_anchor_succeeds_for_same_self_signed_signer()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=self-chain-ok", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -70,7 +70,7 @@ public class EdocSignatureTrustChainTests
             CustomTrustAnchors = new X509Certificate2Collection(anchor),
         };
 
-        var report = EdocValidation.OpenAndValidate(zip, policy);
+        var report = await EdocValidation.OpenAndValidateAsync(zip, policy);
         Assert.True(report.AllSignaturesValid, report.Signatures.ElementAtOrDefault(0)?.Result.Error);
     }
 }

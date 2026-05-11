@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Xml.Linq;
-using eDocLib.Trust.Tsl;
+using eDocLib.Tsl.Xml;
 
 namespace eDocLib.Validation;
 

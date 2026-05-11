@@ -1,5 +1,7 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using eDocLib.Asic.Container;
 using eDocLib.Configuration;
 using eDocLib.Validation;
@@ -216,33 +218,44 @@ public sealed partial class Edoc : IContainer, IValidatableDocument, IDisposable
         _container.ResetSeekablePayloadPositions();
     }
 
-    /// <summary>Validates the container.</summary>
+    /// <summary>Validates the container asynchronously (includes application-controlled online revocation when configured).</summary>
     /// <inheritdoc />
-    public EdocReadValidationResult Validate(SignatureTrustPolicy? trustPolicy = null)
+    public Task<EdocReadValidationResult> ValidateAsync(
+        SignatureTrustPolicy? trustPolicy = null,
+        CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
-        return EdocValidation.ValidateSignatures(this, trustPolicy);
+        return EdocValidation.ValidateSignaturesAsync(this, trustPolicy, cancellationToken);
     }
 
     /// <summary>Saves the container.</summary>
-    public void Save(Stream stream) => Save(stream, validateSignaturesFirst: false);
+    public void Save(Stream stream)
+    {
+        ThrowIfDisposed();
+        ArgumentNullException.ThrowIfNull(stream);
+        _container.Save(stream);
+    }
 
     /// <summary>
-    /// Optionally runs <see cref="Validate"/> before writing. When <paramref name="validateSignaturesFirst"/> is <c>true</c>,
+    /// Optionally runs <see cref="ValidateAsync"/> before writing. When <paramref name="validateSignaturesFirst"/> is <c>true</c>,
     /// requires every signature to pass when at least one signature exists.
     /// </summary>
     /// <exception cref="InvalidOperationException">Validation ran and one or more signatures failed.</exception>
-    public void Save(Stream stream, bool validateSignaturesFirst, SignatureTrustPolicy? trustPolicyForValidation = null)
+    public async Task SaveAsync(
+        Stream stream,
+        bool validateSignaturesFirst,
+        SignatureTrustPolicy? trustPolicyForValidation = null,
+        CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(stream);
         if (validateSignaturesFirst)
         {
-            var r = Validate(trustPolicyForValidation);
+            var r = await ValidateAsync(trustPolicyForValidation, cancellationToken).ConfigureAwait(false);
             if (r.HasSignatures && !r.AllSignaturesValid)
             {
                 throw new InvalidOperationException(
-                    "Container save was blocked because signature validation failed; see EdocReadValidationResult from Validate().");
+                    "Container save was blocked because signature validation failed; see EdocReadValidationResult from ValidateAsync().");
             }
         }
 

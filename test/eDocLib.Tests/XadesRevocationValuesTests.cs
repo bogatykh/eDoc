@@ -12,7 +12,7 @@ namespace eDocLib;
 public class XadesRevocationValuesTests
 {
     [Fact]
-    public void AppendUnsignedRevocationValues_crl_only_wraps_in_CRLValues()
+    public async Task AppendUnsignedRevocationValues_crl_only_wraps_in_CRLValues()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=rv-crl", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -39,7 +39,7 @@ public class XadesRevocationValuesTests
     }
 
     [Fact]
-    public void AppendUnsignedRevocationValues_ocsp_and_crl_both_present()
+    public async Task AppendUnsignedRevocationValues_ocsp_and_crl_both_present()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=rv-both", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -89,7 +89,7 @@ public class XadesRevocationValuesTests
     }
 
     [Fact]
-    public void AppendUnsignedRevocationValues_throws_when_no_non_empty_blobs()
+    public async Task AppendUnsignedRevocationValues_throws_when_no_non_empty_blobs()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=rv-empty", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);

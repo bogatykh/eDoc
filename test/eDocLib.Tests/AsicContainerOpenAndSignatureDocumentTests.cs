@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Security.Cryptography.Xml;
 using System.Text;
+using System.Threading.Tasks;
 using System.Xml;
 using eDocLib;
 using eDocLib.Asic.Container;
@@ -19,7 +20,7 @@ namespace eDocLib.Tests;
 public class AsicContainerOpenAndSignatureDocumentTests
 {
     [Fact]
-    public void Empty_SignatureValue_element_throws_CryptographicException_on_validate()
+    public async Task Empty_SignatureValue_element_throws_CryptographicException_on_validate()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=empty-sv", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -48,12 +49,12 @@ public class AsicContainerOpenAndSignatureDocumentTests
             new Dictionary<string, byte[]> { ["doc.txt"] = payload.ToArray() },
             new List<byte[]> { Encoding.UTF8.GetBytes(doc.OuterXml) });
 
-        Assert.Throws<CryptographicException>(() =>
-            EdocValidation.OpenAndValidate(new MemoryStream(zip), SignatureTrustPolicy.CryptographyOnly));
+        await Assert.ThrowsAsync<CryptographicException>(async () =>
+            await EdocValidation.OpenAndValidateAsync(new MemoryStream(zip), SignatureTrustPolicy.CryptographyOnly));
     }
 
     [Fact]
-    public void Signature_xml_without_KeyInfo_fails_with_missing_signing_certificate_message()
+    public async Task Signature_xml_without_KeyInfo_fails_with_missing_signing_certificate_message()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=no-keyinfo", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -81,7 +82,7 @@ public class AsicContainerOpenAndSignatureDocumentTests
             new Dictionary<string, byte[]> { ["doc.txt"] = payload.ToArray() },
             new List<byte[]> { Encoding.UTF8.GetBytes(doc.OuterXml) });
 
-        var report = EdocValidation.OpenAndValidate(new MemoryStream(zip), SignatureTrustPolicy.CryptographyOnly);
+        var report = await EdocValidation.OpenAndValidateAsync(new MemoryStream(zip), SignatureTrustPolicy.CryptographyOnly);
         Assert.False(report.AllSignaturesValid);
         Assert.Contains(
             "Signing certificate is missing",
@@ -94,7 +95,7 @@ public class AsicContainerOpenAndSignatureDocumentTests
     /// A second sibling <c>ds:Signature</c> remains in the DOM and breaks XML-DSig canonicalisation here — verification throws.
     /// </summary>
     [Fact]
-    public void Two_ds_Signature_elements_in_one_xml_first_is_wrapped_verify_throws()
+    public async Task Two_ds_Signature_elements_in_one_xml_first_is_wrapped_verify_throws()
     {
         using var rsa1 = RSA.Create(2048);
         using var rsa2 = RSA.Create(2048);
@@ -134,12 +135,12 @@ public class AsicContainerOpenAndSignatureDocumentTests
         var only = Assert.IsType<AsicSignature>(edoc.Signatures.First());
         Assert.Equal("sig-first", only.Id);
 
-        Assert.Throws<CryptographicException>(() =>
-            EdocValidation.ValidateSignatures(edoc, SignatureTrustPolicy.CryptographyOnly));
+        await Assert.ThrowsAsync<CryptographicException>(async () =>
+            await EdocValidation.ValidateSignaturesAsync(edoc, SignatureTrustPolicy.CryptographyOnly));
     }
 
     [Fact]
-    public void Oversized_payload_entry_uses_spill_directory_and_still_validates()
+    public async Task Oversized_payload_entry_uses_spill_directory_and_still_validates()
     {
         const int payloadLen = 512 * 1024;
         var payload = new byte[payloadLen];
@@ -172,7 +173,7 @@ public class AsicContainerOpenAndSignatureDocumentTests
                 .Build();
 
             saved.Position = 0;
-            var report = Edoc.OpenAndValidate(cfg, saved, SignatureTrustPolicy.CryptographyOnly);
+            var report = await Edoc.OpenAndValidateAsync(cfg, saved, SignatureTrustPolicy.CryptographyOnly);
             try
             {
                 var df = report.Edoc.DataFiles.First();

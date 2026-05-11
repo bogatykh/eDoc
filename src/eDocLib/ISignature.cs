@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
-using eDocLib.Asic.Xades;
 
 namespace eDocLib
 {

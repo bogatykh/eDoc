@@ -11,7 +11,7 @@ namespace eDocLib;
 public class SignatureChainExtraStoreTests
 {
     [Fact]
-    public void Edoc_validate_succeeds_when_sub_ca_only_in_extra_store_from_tsl_xml()
+    public async Task Edoc_validate_succeeds_when_sub_ca_only_in_extra_store_from_tsl_xml()
     {
         using var rootRsa = RSA.Create(2048);
         var rootReq = new CertificateRequest("CN=Root", rootRsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -71,7 +71,7 @@ public class SignatureChainExtraStoreTests
 
         try
         {
-            var report = EdocValidation.OpenAndValidate(zip, policy);
+            var report = await EdocValidation.OpenAndValidateAsync(zip, policy);
             Assert.True(report.AllSignaturesValid, report.Signatures[0].Result.Error);
             Assert.True(report.Signatures[0].Result.CertificateChainValid);
             var chain = report.Signatures[0].Result.SignerCertificateChain;

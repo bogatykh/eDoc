@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using eDocLib.Configuration;
 using eDocLib.Validation;
 using eDocLib.Validation.Reporting;
@@ -10,28 +12,34 @@ namespace eDocLib;
 
 /// <summary>
 /// Signature verification for loaded <see cref="Edoc"/> instances. For open+validate in one step use
-/// <see cref="Edoc.OpenAndValidate(eDocLib.Configuration.EdocLibConfig, System.IO.Stream, SignatureTrustPolicy?)"/> or this type’s
-/// <see cref="OpenAndValidate(Stream, SignatureTrustPolicy?)"/> (uses <see cref="EdocLibConfig.Default"/> read profile).
+/// <see cref="Edoc.OpenAndValidateAsync(eDocLib.Configuration.EdocLibConfig, System.IO.Stream, SignatureTrustPolicy?, System.Threading.CancellationToken)"/> or this type’s
+/// <see cref="OpenAndValidateAsync(Stream, SignatureTrustPolicy?, CancellationToken)"/> (uses <see cref="EdocLibConfig.Default"/> read profile).
 /// </summary>
 public static class EdocValidation
 {
     /// <summary>
     /// Opens with <see cref="EdocLibConfig.Default"/> read settings, then verifies each signature.
-    /// For custom spill paths or thresholds, use <c>Edoc.OpenAndValidate(EdocLibConfigBuilder.Create().WithPayloadSpillTempDirectory(...).WithPayloadMemoryThresholdBytes(...).Build(), stream, policy)</c>.
+    /// For custom spill paths or thresholds, use <c>Edoc.OpenAndValidateAsync(EdocLibConfigBuilder.Create().WithPayloadSpillTempDirectory(...).WithPayloadMemoryThresholdBytes(...).Build(), stream, policy)</c>.
     /// </summary>
-    public static EdocReadValidationResult OpenAndValidate(Stream stream, SignatureTrustPolicy? trustPolicy = null) =>
-        Edoc.OpenAndValidate(EdocLibConfig.Default, stream, trustPolicy);
+    public static Task<EdocReadValidationResult> OpenAndValidateAsync(
+        Stream stream,
+        SignatureTrustPolicy? trustPolicy = null,
+        CancellationToken cancellationToken = default) =>
+        Edoc.OpenAndValidateAsync(EdocLibConfig.Default, stream, trustPolicy, cancellationToken);
 
     /// <summary>
     /// Verifies each signature on an already-loaded <see cref="Edoc"/> (no container I/O).
     /// Use when signatures are attached in memory as custom <see cref="ISignature"/> implementations (not produced by this library’s signing jobs).
     /// </summary>
-    public static EdocReadValidationResult ValidateSignatures(Edoc edoc, SignatureTrustPolicy? trustPolicy = null)
+    public static async Task<EdocReadValidationResult> ValidateSignaturesAsync(
+        Edoc edoc,
+        SignatureTrustPolicy? trustPolicy = null,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(edoc);
         trustPolicy ??= SignatureTrustPolicy.CryptographyOnly;
 
-        var payloads = BuildPayloadDictionary(edoc);
+        var payloadSource = new EdocDataFilePayloadSource(edoc);
         var list = new List<EdocSignatureVerification>(edoc.Signatures.Count);
         var index = 0;
         foreach (var sig in edoc.Signatures)
@@ -39,7 +47,7 @@ public static class EdocValidation
             SignatureValidationResult result;
             if (sig is XadesSignature xs)
             {
-                result = SignatureValidator.Validate(xs, payloads, trustPolicy);
+                result = await SignatureValidator.ValidateAsync(xs, payloadSource, trustPolicy, cancellationToken).ConfigureAwait(false);
             }
             else
             {
@@ -98,32 +106,9 @@ public static class EdocValidation
         return ValidationReportFactory.CreateDocumentReport(result, policy, reportOptions);
     }
 
-    /// <summary>Builds payload dictionary.</summary>
-    private static Dictionary<string, byte[]> BuildPayloadDictionary(Edoc edoc)
-    {
-        var dict = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
-        foreach (var df in edoc.DataFiles)
-        {
-            if (df.Stream.CanSeek)
-            {
-                df.Stream.Position = 0;
-            }
-
-            using var ms = new MemoryStream();
-            df.Stream.CopyTo(ms);
-            if (df.Stream.CanSeek)
-            {
-                df.Stream.Position = 0;
-            }
-
-            dict[df.Name] = ms.ToArray();
-        }
-
-        return dict;
-    }
 }
 
-/// <summary>Outcome of <see cref="Edoc.OpenAndValidate(eDocLib.Configuration.EdocLibConfig, System.IO.Stream, eDocLib.Validation.SignatureTrustPolicy?)"/>.</summary>
+/// <summary>Outcome of <see cref="Edoc.OpenAndValidateAsync(eDocLib.Configuration.EdocLibConfig, System.IO.Stream, eDocLib.Validation.SignatureTrustPolicy?, System.Threading.CancellationToken)"/>.</summary>
 public sealed class EdocReadValidationResult : IEdocContainerValidationResult
 {
     /// <summary>Gets or sets the eDoc.</summary>

@@ -23,7 +23,7 @@ namespace eDocLib;
 public class RevocationClientsTests
 {
     [Fact]
-    public void OcspRequestBuilder_BuildDer_starts_with_sequence_and_non_empty()
+    public async Task OcspRequestBuilder_BuildDer_starts_with_sequence_and_non_empty()
     {
         using var rootRsa = RSA.Create(2048);
         var rootReq = new CertificateRequest("CN=Root OCSP", rootRsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -47,7 +47,7 @@ public class RevocationClientsTests
     }
 
     [Fact]
-    public void X509RevocationUriDiscovery_self_signed_without_AIA_returns_no_ocsp()
+    public async Task X509RevocationUriDiscovery_self_signed_without_AIA_returns_no_ocsp()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=no aia", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -57,7 +57,7 @@ public class RevocationClientsTests
     }
 
     [Fact]
-    public void X509RevocationUriDiscovery_reads_AIA_and_CDP_from_extensions()
+    public async Task X509RevocationUriDiscovery_reads_AIA_and_CDP_from_extensions()
     {
         const string ocspUrl = "http://ocsp.example.test/status";
         const string crlUrl = "http://crl.example.test/root.crl";
@@ -126,7 +126,7 @@ public class RevocationClientsTests
     }
 
     [Fact]
-    public void OcspResponseReader_reads_successful_transport_status()
+    public async Task OcspResponseReader_reads_successful_transport_status()
     {
         // OCSPResponse ::= SEQUENCE { responseStatus ENUMERATED { successful(0) }, ... }
         var der = new byte[] { 0x30, 0x03, 0x0A, 0x01, 0x00 };
@@ -136,7 +136,7 @@ public class RevocationClientsTests
     }
 
     [Fact]
-    public void OcspResponseReader_rejects_garbage()
+    public async Task OcspResponseReader_rejects_garbage()
     {
         Assert.False(OcspResponseReader.TryGetTransportStatus(new byte[] { 0x01, 0x02 }, out _));
         Assert.False(OcspResponseReader.IsTransportSuccessful(new byte[] { 0xff }));
@@ -189,7 +189,7 @@ public class RevocationClientsTests
     }
 
     [Fact]
-    public void X509RevocationUriDiscovery_reads_Freshest_CRL_HTTP_Uris_from_base_CRL()
+    public async Task X509RevocationUriDiscovery_reads_Freshest_CRL_HTTP_Uris_from_base_CRL()
     {
         const string deltaUrl = "http://delta.example.test/delta.crl";
         var freshestGn = new GeneralName(GeneralName.UniformResourceIdentifier, deltaUrl);

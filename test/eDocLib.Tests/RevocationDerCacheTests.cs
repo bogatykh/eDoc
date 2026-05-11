@@ -77,7 +77,7 @@ public class RevocationDerCacheTests
     }
 
     [Fact]
-    public void DirectoryRevocationDerCache_rejects_non_positive_capacity_options()
+    public async Task DirectoryRevocationDerCache_rejects_non_positive_capacity_options()
     {
         var dir = Path.Combine(Path.GetTempPath(), "edoc-rev-cap-bad-" + Guid.NewGuid().ToString("N"));
         try

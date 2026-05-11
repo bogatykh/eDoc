@@ -49,7 +49,7 @@ public class TrustedListEp40Tests
     }
 
     [Fact]
-    public void TrustedListReader_TryLoad_returns_TrustedListLoadResult_bundle()
+    public async Task TrustedListReader_TryLoad_returns_TrustedListLoadResult_bundle()
     {
         var bytes = MinimalSignedTslXmlBytes();
         using var s = new MemoryStream(bytes);
@@ -60,7 +60,7 @@ public class TrustedListEp40Tests
     }
 
     [Fact]
-    public void TrustedListValidator_and_TrustedListParser_delegate_to_same_load()
+    public async Task TrustedListValidator_and_TrustedListParser_delegate_to_same_load()
     {
         var bytes = MinimalSignedTslXmlBytes();
         using (var s = new MemoryStream(bytes))

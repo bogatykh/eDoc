@@ -2,30 +2,14 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
+using System.Threading.Tasks;
 using eDocLib.Revocation;
 using eDocLib.Revocation.Online;
 using eDocLib.Revocation.Verify;
 using eDocLib.Asic.Xades;
 
 namespace eDocLib.Validation;
-
-/// <summary>File-local helpers: merges national <see cref="TslQualificationMappingDefaults"/> with policy options.</summary>
-file static class SignatureValidatorQualificationMapping
-{
-    /// <summary>Resolves the configured value.</summary>
-    internal static TslQualificationMappingOptions? Resolve(SignatureTrustPolicy policy)
-    {
-        if (!policy.MergeTrustListQualificationUriDefaults)
-        {
-            return policy.TslQualificationMappingOptions;
-        }
-
-        return TslQualificationMappingOptions.Merge(
-            TslQualificationMappingDefaults.LatvianNationalPublished,
-            policy.TslQualificationMappingOptions)
-            ?? TslQualificationMappingDefaults.LatvianNationalPublished;
-    }
-}
 
 /// <summary>File-local helpers: derives revocation-report flags for edge-case PKIX paths.</summary>
 file static class RevocationValidationReportExtras
@@ -102,12 +86,29 @@ file static class SignatureValidatorTrustedList
 /// </summary>
 internal static class SignatureValidator
 {
-    /// <summary>Validates current state.</summary>
-    public static SignatureValidationResult Validate(
+    /// <summary>Validates using an in-memory payload map (tests and custom callers).</summary>
+    public static Task<SignatureValidationResult> ValidateAsync(
         XadesSignature signature,
         IReadOnlyDictionary<string, byte[]> payloadByRelativeUri,
-        SignatureTrustPolicy? policy = null)
+        SignatureTrustPolicy? policy = null,
+        CancellationToken cancellationToken = default) =>
+        ValidateAsync(
+            signature,
+            new InMemoryPayloadSource(payloadByRelativeUri ?? throw new ArgumentNullException(nameof(payloadByRelativeUri))),
+            policy,
+            cancellationToken);
+
+    /// <summary>
+    /// Validates a signature using a streaming payload source.
+    /// </summary>
+    internal static async Task<SignatureValidationResult> ValidateAsync(
+        XadesSignature signature,
+        IValidationPayloadSource payloadSource,
+        SignatureTrustPolicy? policy = null,
+        CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(signature);
+        ArgumentNullException.ThrowIfNull(payloadSource);
         policy ??= SignatureTrustPolicy.CryptographyOnly;
 
         var embeddedOcspN = signature.UnsignedEncapsulatedOcspDer.Count;
@@ -137,7 +138,7 @@ internal static class SignatureValidator
                 embeddedArtifactOutcomes,
                 onlineArtifactOutcomes);
 
-        if (!DetachedSignatureVerifier.TryVerify(signature, payloadByRelativeUri, out var cryptoError, policy))
+        if (!DetachedSignatureVerifier.TryVerify(signature, payloadSource, out var cryptoError, policy))
         {
             return new SignatureValidationResult
             {
@@ -213,47 +214,49 @@ internal static class SignatureValidator
         var wantTsa = policy.ValidateTsaSigner || policy.ValidateTsaSignerChain;
         if (wantTsa && hasTs)
         {
-            if (!SignatureTimestampVerifier.TryVerifyTsaTokenTrust(
-                    owner,
-                    policy,
-                    out var tsaError,
-                    out tsaCmsValid,
-                    out tsaChainValid,
-                    out tsaSignerChainDiag))
+            var tsaRes = await SignatureTimestampVerifier.TryVerifyTsaTokenTrustAsync(owner, policy, cancellationToken)
+                .ConfigureAwait(false);
+            if (!tsaRes.Ok)
             {
                 return StampSlice() with
                 {
                     Success = false,
-                    Error = tsaError,
+                    Error = tsaRes.Error,
                     ReferencesAndSignatureValid = true,
                     CertificateChainValid = null,
+                    TsaSignerCmsValid = tsaRes.CmsValid,
+                    TsaSignerChainValid = tsaRes.ChainValid,
+                    TsaSignerCertificateChain = tsaRes.CertificateChain,
                     Revocation = Rev(false),
                 };
             }
+
+            tsaCmsValid = tsaRes.CmsValid;
+            tsaChainValid = tsaRes.ChainValid;
+            tsaSignerChainDiag = tsaRes.CertificateChain;
         }
 
         if (policy.ValidateArchiveTimeStampCms && archDerList.Count > 0)
         {
             foreach (var der in archDerList)
             {
-                if (!SignatureTimestampVerifier.TryVerifyTimeStampTokenDer(
+                var archiveRes = await SignatureTimestampVerifier.TryVerifyTimeStampTokenDerAsync(
                         der,
                         policy,
                         verifyCms: true,
                         verifyChain: policy.ValidateArchiveTimeStampChain,
-                        out var archiveErr,
-                        out var aCms,
-                        out var aChain,
-                        out _))
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                if (!archiveRes.Ok)
                 {
                     return StampSlice() with
                     {
                         Success = false,
-                        Error = archiveErr,
+                        Error = archiveRes.Error,
                         ReferencesAndSignatureValid = true,
                         CertificateChainValid = null,
-                        ArchiveTimeStampsCmsValid = aCms,
-                        ArchiveTimeStampsChainValid = aChain,
+                        ArchiveTimeStampsCmsValid = archiveRes.CmsValid,
+                        ArchiveTimeStampsChainValid = archiveRes.ChainValid,
                         Revocation = Rev(false),
                     };
                 }
@@ -296,14 +299,14 @@ internal static class SignatureValidator
                 TrustedListServiceTypeIdentifiers = tsl.ServiceTypeIds,
                 TrustedListServiceStatus = tsl.ServiceStatus,
                 TrustedListQualificationIndicators = tsl.Listed == true
-                    ? TslQualificationMapper.Map(tsl.ServiceTypeIds, tsl.ServiceStatus, SignatureValidatorQualificationMapping.Resolve(policy))
+                    ? TslQualificationMapper.Map(tsl.ServiceTypeIds, tsl.ServiceStatus, policy.ResolveQualificationMappingOptions())
                     : null,
                 Revocation = Rev(false),
             };
         }
 
         var tslIndicators = tsl.Listed == true
-            ? TslQualificationMapper.Map(tsl.ServiceTypeIds, tsl.ServiceStatus, SignatureValidatorQualificationMapping.Resolve(policy))
+            ? TslQualificationMapper.Map(tsl.ServiceTypeIds, tsl.ServiceStatus, policy.ResolveQualificationMappingOptions())
             : null;
 
         if (policy.RequireTrustedListServiceStatusGranted && policy.TrustedListServiceIndex is not null)
@@ -396,18 +399,19 @@ internal static class SignatureValidator
         if (policy.UsesApplicationControlledOnlineRevocation)
         {
             appOnlineChecked = true;
-            if (!ApplicationOnlineRevocation.TryVerifyIfRequired(
+            var onlineOutcome = await ApplicationOnlineRevocation.TryVerifyIfRequiredAsync(
                     policy,
                     signingCert,
                     chain,
-                    out var onlineRevocationError,
-                    out var onlineFetched,
-                    out onlineArtifactOutcomes))
+                    materialFetcher: null,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            if (!onlineOutcome.Ok)
             {
                 return StampSlice() with
                 {
                     Success = false,
-                    Error = onlineRevocationError,
+                    Error = onlineOutcome.Error,
                     ReferencesAndSignatureValid = true,
                     CertificateChainValid = true,
                     SigningCertificateListedInTrustedList = tsl.Listed,
@@ -421,15 +425,16 @@ internal static class SignatureValidator
                         true,
                         applicationOnlineChecked: true,
                         applicationOnlineValid: false,
-                        onlineFetched: onlineFetched,
+                        onlineFetched: onlineOutcome.Fetched,
                         embeddedRevocationValid: null,
                         embeddedArtifactOutcomes: null,
-                        onlineArtifactOutcomes: onlineArtifactOutcomes),
+                        onlineArtifactOutcomes: onlineOutcome.Artifacts),
                 };
             }
 
             appOnlineValid = true;
-            onlineFetchedMaterial = onlineFetched;
+            onlineFetchedMaterial = onlineOutcome.Fetched;
+            onlineArtifactOutcomes = onlineOutcome.Artifacts;
         }
 
         IReadOnlyList<RevocationArtifactOutcome>? embeddedArtifactOutcomes = null;

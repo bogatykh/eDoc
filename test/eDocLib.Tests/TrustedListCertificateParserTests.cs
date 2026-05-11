@@ -10,7 +10,7 @@ namespace eDocLib.Tests;
 public class TrustedListCertificateParserTests
 {
     [Fact]
-    public void ReadCertificates_extracts_unique_certs_from_tsl_xml()
+    public async Task ReadCertificates_extracts_unique_certs_from_tsl_xml()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=TSL parser test", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);

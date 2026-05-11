@@ -13,7 +13,7 @@ namespace eDocLib;
 public class XadesTAndSignerRolesTests
 {
     [Fact]
-    public void X09_signer_roles_emitted_and_round_tripped_on_signature()
+    public async Task X09_signer_roles_emitted_and_round_tripped_on_signature()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=role-test", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -49,7 +49,7 @@ public class XadesTAndSignerRolesTests
     }
 
     [Fact]
-    public void X09_claimed_role_policy_require_one_fails_when_missing()
+    public async Task X09_claimed_role_policy_require_one_fails_when_missing()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=role-pol", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -61,13 +61,13 @@ public class XadesTAndSignerRolesTests
             DateTimeOffset.Parse("2024-03-01T12:00:00Z"));
 
         var policy = new SignatureTrustPolicy { RequireAtLeastOneSignerClaimedRole = true };
-        var r = SignatureValidator.Validate(sig, new Dictionary<string, byte[]> { ["doc.txt"] = payload }, policy);
+        var r = await SignatureValidator.ValidateAsync(sig, new Dictionary<string, byte[]> { ["doc.txt"] = payload }, policy);
         Assert.False(r.Success);
         Assert.Contains("ClaimedRole", r.Error ?? "", StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public void X09_claimed_role_allow_list_rejects_unknown_role()
+    public async Task X09_claimed_role_allow_list_rejects_unknown_role()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=role-allow", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -80,13 +80,13 @@ public class XadesTAndSignerRolesTests
             signerRoles: new[] { "Author" });
 
         var policy = new SignatureTrustPolicy { SignerClaimedRoleAllowList = new[] { "Reviewer" } };
-        var r = SignatureValidator.Validate(sig, new Dictionary<string, byte[]> { ["doc.txt"] = payload }, policy);
+        var r = await SignatureValidator.ValidateAsync(sig, new Dictionary<string, byte[]> { ["doc.txt"] = payload }, policy);
         Assert.False(r.Success);
         Assert.Contains("Author", r.Error ?? "", StringComparison.Ordinal);
     }
 
     [Fact]
-    public void X09_claimed_role_allow_list_accepts_listed_role()
+    public async Task X09_claimed_role_allow_list_accepts_listed_role()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=role-ok", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -99,7 +99,7 @@ public class XadesTAndSignerRolesTests
             signerRoles: new[] { "Author" });
 
         var policy = new SignatureTrustPolicy { SignerClaimedRoleAllowList = new[] { "Author", "Reviewer" } };
-        var r = SignatureValidator.Validate(sig, new Dictionary<string, byte[]> { ["doc.txt"] = payload }, policy);
+        var r = await SignatureValidator.ValidateAsync(sig, new Dictionary<string, byte[]> { ["doc.txt"] = payload }, policy);
         Assert.True(r.Success, r.Error);
     }
 
@@ -135,7 +135,7 @@ public class XadesTAndSignerRolesTests
         edoc.Save(zip);
         zip.Position = 0;
 
-        var report = EdocValidation.OpenAndValidate(zip, SignatureTrustPolicy.CryptographyOnly);
+        var report = await EdocValidation.OpenAndValidateAsync(zip, SignatureTrustPolicy.CryptographyOnly);
         Assert.True(report.AllSignaturesValid);
     }
 
@@ -200,7 +200,7 @@ public class XadesTAndSignerRolesTests
         edoc.Save(zip);
         zip.Position = 0;
 
-        var report = EdocValidation.OpenAndValidate(zip, SignatureTrustPolicy.CryptographyAndTimestampImprint);
+        var report = await EdocValidation.OpenAndValidateAsync(zip, SignatureTrustPolicy.CryptographyAndTimestampImprint);
         Assert.True(report.AllSignaturesValid);
         Assert.True(report.Signatures[0].Result.SignatureTimestampImprintValid);
     }
@@ -227,13 +227,13 @@ public class XadesTAndSignerRolesTests
         edoc.Save(zip);
         zip.Position = 0;
 
-        var report = EdocValidation.OpenAndValidate(zip, SignatureTrustPolicy.CryptographyAndTimestampImprint);
+        var report = await EdocValidation.OpenAndValidateAsync(zip, SignatureTrustPolicy.CryptographyAndTimestampImprint);
         Assert.False(report.AllSignaturesValid);
         Assert.False(report.Signatures[0].Result.SignatureTimestampImprintValid);
     }
 
     [Fact]
-    public void EdocValidation_BES_with_imprint_policy_leaves_imprint_null()
+    public async Task EdocValidation_BES_with_imprint_policy_leaves_imprint_null()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=bes", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -250,7 +250,7 @@ public class XadesTAndSignerRolesTests
         edoc.Save(zip);
         zip.Position = 0;
 
-        var report = EdocValidation.OpenAndValidate(zip, SignatureTrustPolicy.CryptographyAndTimestampImprint);
+        var report = await EdocValidation.OpenAndValidateAsync(zip, SignatureTrustPolicy.CryptographyAndTimestampImprint);
         Assert.True(report.AllSignaturesValid);
         Assert.Null(report.Signatures[0].Result.SignatureTimestampImprintValid);
     }
@@ -277,7 +277,7 @@ public class XadesTAndSignerRolesTests
         edoc.Save(zip);
         zip.Position = 0;
 
-        var report = EdocValidation.OpenAndValidate(zip, SignatureTrustPolicy.CryptographyTimestampImprintAndTsaSigner);
+        var report = await EdocValidation.OpenAndValidateAsync(zip, SignatureTrustPolicy.CryptographyTimestampImprintAndTsaSigner);
         Assert.True(report.AllSignaturesValid, report.Signatures[0].Result.Error ?? "(no error)");
         Assert.True(report.Signatures[0].Result.SignatureTimestampImprintValid);
         Assert.True(report.Signatures[0].Result.TsaSignerCmsValid);
@@ -311,7 +311,7 @@ public class XadesTAndSignerRolesTests
             ValidateTsaSigner = true,
             TimestampImprintPolicy = SignatureTimestampImprintPolicy.Ignore,
         };
-        var report = EdocValidation.OpenAndValidate(zip, policy);
+        var report = await EdocValidation.OpenAndValidateAsync(zip, policy);
         Assert.True(report.AllSignaturesValid);
         Assert.Null(report.Signatures[0].Result.SignatureTimestampImprintValid);
         Assert.True(report.Signatures[0].Result.TsaSignerCmsValid);
@@ -348,7 +348,7 @@ public class XadesTAndSignerRolesTests
             TsaTrustAnchors = new X509Certificate2Collection(tsaPublic),
         };
 
-        var report = EdocValidation.OpenAndValidate(zip, policy);
+        var report = await EdocValidation.OpenAndValidateAsync(zip, policy);
         Assert.True(report.AllSignaturesValid, report.Signatures[0].Result.Error);
         Assert.True(report.Signatures[0].Result.TsaSignerChainValid);
         Assert.NotNull(report.Signatures[0].Result.TsaSignerCertificateChain);
@@ -400,7 +400,7 @@ public class XadesTAndSignerRolesTests
         edoc.Save(zip);
         zip.Position = 0;
 
-        var report = EdocValidation.OpenAndValidate(zip, SignatureTrustPolicy.CryptographyTimestampImprintAndTsaSigner);
+        var report = await EdocValidation.OpenAndValidateAsync(zip, SignatureTrustPolicy.CryptographyTimestampImprintAndTsaSigner);
         Assert.True(report.AllSignaturesValid, report.Signatures[0].Result.Error);
         Assert.True(report.Signatures[0].Result.TsaSignerCmsValid);
     }

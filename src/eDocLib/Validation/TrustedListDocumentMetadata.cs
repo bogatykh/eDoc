@@ -1,6 +1,6 @@
 using System.Globalization;
 using System.Xml.Linq;
-using eDocLib.Trust.Tsl;
+using eDocLib.Tsl.Xml;
 
 namespace eDocLib.Validation;
 

@@ -11,7 +11,7 @@ namespace eDocLib.Tests;
 public class AsicContainerDataFileNameTests
 {
     [Fact]
-    public void Zip_entry_name_with_dot_segments_round_trips_literal_string()
+    public async Task Zip_entry_name_with_dot_segments_round_trips_literal_string()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=dots", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -34,7 +34,7 @@ public class AsicContainerDataFileNameTests
         Assert.Single(loaded.DataFiles);
         Assert.Equal(relativeName, loaded.DataFiles.First().Name);
 
-        var report = EdocValidation.ValidateSignatures(loaded, SignatureTrustPolicy.CryptographyOnly);
+        var report = await EdocValidation.ValidateSignaturesAsync(loaded, SignatureTrustPolicy.CryptographyOnly);
         Assert.True(report.AllSignaturesValid, report.Signatures.ElementAtOrDefault(0)?.Result.Error);
     }
 }

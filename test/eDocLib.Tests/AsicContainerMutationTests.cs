@@ -11,7 +11,7 @@ namespace eDocLib.Tests;
 public class AsicContainerMutationTests
 {
     [Fact]
-    public void RemoveDataFileAt_first_entry_shifts_remaining_names()
+    public async Task RemoveDataFileAt_first_entry_shifts_remaining_names()
     {
         var edoc = Edoc.CreateNew();
         edoc.AddDataFile(new MemoryStream("a"u8.ToArray()), "first.txt", "text/plain");
@@ -24,7 +24,7 @@ public class AsicContainerMutationTests
     }
 
     [Fact]
-    public void RemoveSignatureAt_removes_by_index_order()
+    public async Task RemoveSignatureAt_removes_by_index_order()
     {
         using var rsa1 = RSA.Create(2048);
         using var rsa2 = RSA.Create(2048);
@@ -60,7 +60,7 @@ public class AsicContainerMutationTests
         edoc.Save(zip);
         zip.Position = 0;
 
-        var report = EdocValidation.OpenAndValidate(zip, SignatureTrustPolicy.CryptographyOnly);
+        var report = await EdocValidation.OpenAndValidateAsync(zip, SignatureTrustPolicy.CryptographyOnly);
         Assert.True(report.AllSignaturesValid);
     }
 }

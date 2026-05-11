@@ -11,7 +11,7 @@ namespace eDocLib.Tests;
 public class XadesBesSignerEdgeCaseTests
 {
     [Fact]
-    public void Sign_no_data_files_detached_verifier_accepts_empty_payload_map()
+    public async Task Sign_no_data_files_detached_verifier_accepts_empty_payload_map()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=no-files", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -29,7 +29,7 @@ public class XadesBesSignerEdgeCaseTests
     }
 
     [Fact]
-    public void Empty_container_with_signature_only_round_trips_and_validates()
+    public async Task Empty_container_with_signature_only_round_trips_and_validates()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=no-data-files-container", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -47,7 +47,7 @@ public class XadesBesSignerEdgeCaseTests
         edoc.Save(zip);
         zip.Position = 0;
 
-        var report = EdocValidation.OpenAndValidate(zip, SignatureTrustPolicy.CryptographyOnly);
+        var report = await EdocValidation.OpenAndValidateAsync(zip, SignatureTrustPolicy.CryptographyOnly);
         Assert.True(report.AllSignaturesValid, report.Signatures.ElementAtOrDefault(0)?.Result.Error);
         Assert.Empty(report.Edoc.DataFiles);
     }

@@ -21,7 +21,7 @@ namespace eDocLib;
 public class EmbeddedRevocationVerifierTests
 {
     [Fact]
-    public void TryVerifyUnsignedArtifacts_accepts_good_ocsp_against_chain()
+    public async Task TryVerifyUnsignedArtifacts_accepts_good_ocsp_against_chain()
     {
         var (ocspDer, leafPub, issuerPub) =
             BcOcspRevocationTestData.BuildGoodOcspWithIssuerResponderEmbedded(BigInteger.ValueOf(42_001));
@@ -32,7 +32,7 @@ public class EmbeddedRevocationVerifierTests
     }
 
     [Fact]
-    public void TryVerifyUnsignedArtifactsDetailed_records_non_empty_ocsp_outcomes()
+    public async Task TryVerifyUnsignedArtifactsDetailed_records_non_empty_ocsp_outcomes()
     {
         var (ocspDer, leafPub, issuerPub) =
             BcOcspRevocationTestData.BuildGoodOcspWithIssuerResponderEmbedded(BigInteger.ValueOf(42_030));
@@ -53,7 +53,7 @@ public class EmbeddedRevocationVerifierTests
     }
 
     [Fact]
-    public void Strict_embedded_responder_only_rejects_ocsp_without_embedded_certs()
+    public async Task Strict_embedded_responder_only_rejects_ocsp_without_embedded_certs()
     {
         var (ocspDer, leafPub, issuerPub) = BuildBcOcspGoodNoEmbeddedCerts(BigInteger.ValueOf(42_010));
         var chain = new[] { leafPub, issuerPub };
@@ -65,7 +65,7 @@ public class EmbeddedRevocationVerifierTests
     }
 
     [Fact]
-    public void Strict_ocsp_signing_eku_rejects_ca_embedded_responder_without_eku()
+    public async Task Strict_ocsp_signing_eku_rejects_ca_embedded_responder_without_eku()
     {
         var (ocspDer, leafPub, issuerPub) =
             BcOcspRevocationTestData.BuildGoodOcspWithIssuerResponderEmbedded(BigInteger.ValueOf(42_011));
@@ -78,7 +78,7 @@ public class EmbeddedRevocationVerifierTests
     }
 
     [Fact]
-    public void Responder_pkix_validation_accepts_when_embedded_responder_is_trusted_issuer()
+    public async Task Responder_pkix_validation_accepts_when_embedded_responder_is_trusted_issuer()
     {
         var (ocspDer, leafPub, issuerPub) =
             BcOcspRevocationTestData.BuildGoodOcspWithIssuerResponderEmbedded(BigInteger.ValueOf(42_021));
@@ -94,7 +94,7 @@ public class EmbeddedRevocationVerifierTests
     }
 
     [Fact]
-    public void Responder_pkix_validation_rejects_standalone_ocsp_responder_not_under_signer_anchors()
+    public async Task Responder_pkix_validation_rejects_standalone_ocsp_responder_not_under_signer_anchors()
     {
         var (ocspDer, leafPub, issuerPub) =
             BcOcspRevocationTestData.BuildOcspSignedByDedicatedResponder(BigInteger.ValueOf(42_020));
@@ -111,7 +111,7 @@ public class EmbeddedRevocationVerifierTests
     }
 
     [Fact]
-    public void Responder_pkix_validation_requires_embedded_responder_certificate()
+    public async Task Responder_pkix_validation_requires_embedded_responder_certificate()
     {
         var (ocspDer, leafPub, issuerPub) = BuildBcOcspGoodNoEmbeddedCerts(BigInteger.ValueOf(42_022));
         var chain = new[] { leafPub, issuerPub };
@@ -123,7 +123,7 @@ public class EmbeddedRevocationVerifierTests
     }
 
     [Fact]
-    public void TryVerifyUnsignedArtifacts_rejects_revoked_ocsp()
+    public async Task TryVerifyUnsignedArtifacts_rejects_revoked_ocsp()
     {
         var (ocspDer, leafPub, issuerPub) = BuildBcOcspRevoked(BigInteger.ValueOf(42_002));
         var chain = new[] { leafPub, issuerPub };
@@ -132,7 +132,7 @@ public class EmbeddedRevocationVerifierTests
     }
 
     [Fact]
-    public void TryVerifyUnsignedArtifacts_accepts_empty_crl_that_does_not_revoke_leaf()
+    public async Task TryVerifyUnsignedArtifacts_accepts_empty_crl_that_does_not_revoke_leaf()
     {
         var (crlDer, issuerPub, leafPub) = BuildEmptyCrlForLeaf(BigInteger.ValueOf(42_003));
         var chain = new[] { leafPub, issuerPub };
@@ -142,7 +142,7 @@ public class EmbeddedRevocationVerifierTests
     }
 
     [Fact]
-    public void TryVerifyUnsignedArtifacts_rejects_crl_that_revokes_leaf()
+    public async Task TryVerifyUnsignedArtifacts_rejects_crl_that_revokes_leaf()
     {
         var serial = BigInteger.ValueOf(42_004);
         var (crlDer, issuerPub, leafPub) = BuildCrlRevokingLeaf(serial);
@@ -152,7 +152,7 @@ public class EmbeddedRevocationVerifierTests
     }
 
     [Fact]
-    public void TryVerifyUnsignedArtifacts_accepts_crl_signed_by_delegated_issuer_only_in_extra_chain()
+    public async Task TryVerifyUnsignedArtifacts_accepts_crl_signed_by_delegated_issuer_only_in_extra_chain()
     {
         var serial = BigInteger.ValueOf(42_030);
         var (crlDer, leafPub, intermediatePub, rootPub, delegatedPub) = BuildEmptyCrlSignedByDelegatedIssuer(serial);
@@ -168,7 +168,7 @@ public class EmbeddedRevocationVerifierTests
     }
 
     [Fact]
-    public void SignatureValidator_embedded_crl_accepts_delegated_crl_signer_in_extra_chain()
+    public async Task SignatureValidator_embedded_crl_accepts_delegated_crl_signer_in_extra_chain()
     {
         using var rootRsa = RSA.Create(2048);
         var rootReq = new CertificateRequest("CN=Root CRL extra chain", rootRsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -233,13 +233,13 @@ public class EmbeddedRevocationVerifierTests
             VerifyUnsignedRevocationWhenPresent = true,
         };
 
-        var result = SignatureValidator.Validate(sig, new Dictionary<string, byte[]> { ["doc.txt"] = payload }, policy);
+        var result = await SignatureValidator.ValidateAsync(sig, new Dictionary<string, byte[]> { ["doc.txt"] = payload }, policy);
         Assert.True(result.Success, result.Error);
         Assert.True(result.UnsignedRevocationArtifactsValid);
     }
 
     [Fact]
-    public void SignatureValidator_runs_embedded_ocsp_when_policy_enabled()
+    public async Task SignatureValidator_runs_embedded_ocsp_when_policy_enabled()
     {
         using var issuerRsa = RSA.Create(2048);
         var issuerReq = new CertificateRequest("CN=CA OCSP embed", issuerRsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -286,13 +286,13 @@ public class EmbeddedRevocationVerifierTests
             StrictEmbeddedOcspValidateResponderCertificateChain = true,
         };
 
-        var result = SignatureValidator.Validate(sig, new Dictionary<string, byte[]> { ["doc.txt"] = payload }, policy);
+        var result = await SignatureValidator.ValidateAsync(sig, new Dictionary<string, byte[]> { ["doc.txt"] = payload }, policy);
         Assert.True(result.Success, result.Error);
         Assert.True(result.UnsignedRevocationArtifactsValid);
     }
 
     [Fact]
-    public void SignatureValidator_responder_pkix_fails_when_ocsp_signed_by_unanchored_standalone_responder()
+    public async Task SignatureValidator_responder_pkix_fails_when_ocsp_signed_by_unanchored_standalone_responder()
     {
         using var issuerRsa = RSA.Create(2048);
         var issuerReq = new CertificateRequest("CN=CA standalone OCSP", issuerRsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -347,13 +347,13 @@ public class EmbeddedRevocationVerifierTests
             StrictEmbeddedOcspValidateResponderCertificateChain = true,
         };
 
-        var result = SignatureValidator.Validate(sig, new Dictionary<string, byte[]> { ["doc.txt"] = payload }, policy);
+        var result = await SignatureValidator.ValidateAsync(sig, new Dictionary<string, byte[]> { ["doc.txt"] = payload }, policy);
         Assert.False(result.Success);
         Assert.Contains("PKIX", result.Error ?? "", StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public void SignatureValidator_strict_embedded_responder_fails_when_ocsp_has_no_embedded_certs()
+    public async Task SignatureValidator_strict_embedded_responder_fails_when_ocsp_has_no_embedded_certs()
     {
         using var issuerRsa = RSA.Create(2048);
         var issuerReq = new CertificateRequest("CN=Strict CA", issuerRsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -402,7 +402,7 @@ public class EmbeddedRevocationVerifierTests
             StrictEmbeddedOcspRequireEmbeddedResponderSignature = true,
         };
 
-        var result = SignatureValidator.Validate(sig, new Dictionary<string, byte[]> { ["doc.txt"] = payload }, policy);
+        var result = await SignatureValidator.ValidateAsync(sig, new Dictionary<string, byte[]> { ["doc.txt"] = payload }, policy);
         Assert.False(result.Success);
         Assert.Contains("embedded", result.Error ?? "", StringComparison.OrdinalIgnoreCase);
     }

@@ -11,7 +11,7 @@ namespace eDocLib.Tests;
 public class EdocValidationPayloadMismatchTests
 {
     [Fact]
-    public void Payload_bytes_swapped_after_sign_fails_validation_same_mime_and_name()
+    public async Task Payload_bytes_swapped_after_sign_fails_validation_same_mime_and_name()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=tamper", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -30,7 +30,7 @@ public class EdocValidationPayloadMismatchTests
         edoc.Save(zip);
         zip.Position = 0;
 
-        var report = EdocValidation.OpenAndValidate(zip, SignatureTrustPolicy.CryptographyOnly);
+        var report = await EdocValidation.OpenAndValidateAsync(zip, SignatureTrustPolicy.CryptographyOnly);
         Assert.False(report.AllSignaturesValid);
         Assert.Contains("Digest mismatch", report.Signatures[0].Result.Error ?? string.Empty, StringComparison.Ordinal);
     }

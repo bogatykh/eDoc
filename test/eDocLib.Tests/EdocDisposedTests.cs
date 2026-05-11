@@ -7,7 +7,7 @@ using Xunit;
 
 namespace eDocLib.Tests;
 
-/// <summary><see cref="Edoc.Dispose"/> interaction with <see cref="Edoc.Save"/> and <see cref="Edoc.Validate"/>.</summary>
+/// <summary><see cref="Edoc.Dispose"/> interaction with <see cref="Edoc.Save"/> and <see cref="Edoc.ValidateAsync"/>.</summary>
 public class EdocDisposedTests
 {
     [Fact]
@@ -17,18 +17,28 @@ public class EdocDisposedTests
         edoc.Dispose();
 
         Assert.Throws<ObjectDisposedException>(() => edoc.Save(new MemoryStream()));
-        Assert.Throws<ObjectDisposedException>(() => edoc.Save(new MemoryStream(), validateSignaturesFirst: false));
-        Assert.Throws<ObjectDisposedException>(() => edoc.Save(new MemoryStream(), validateSignaturesFirst: true));
     }
 
     [Fact]
-    public void After_dispose_validate_throws_ObjectDisposedException()
+    public async Task After_dispose_save_with_preflight_throws_ObjectDisposedException()
     {
         var edoc = Edoc.CreateNew();
         edoc.Dispose();
 
-        Assert.Throws<ObjectDisposedException>(() => edoc.Validate());
-        Assert.Throws<ObjectDisposedException>(() => edoc.Validate(SignatureTrustPolicy.CryptographyOnly));
+        await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+                await edoc.SaveAsync(new MemoryStream(), validateSignaturesFirst: true))
+            ;
+    }
+
+    [Fact]
+    public async Task After_dispose_validate_throws_ObjectDisposedException()
+    {
+        var edoc = Edoc.CreateNew();
+        edoc.Dispose();
+
+        await Assert.ThrowsAsync<ObjectDisposedException>(() => edoc.ValidateAsync());
+        await Assert.ThrowsAsync<ObjectDisposedException>(() => edoc.ValidateAsync(SignatureTrustPolicy.CryptographyOnly))
+            ;
     }
 
     [Fact]

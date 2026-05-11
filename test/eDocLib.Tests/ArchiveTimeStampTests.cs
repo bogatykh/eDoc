@@ -12,7 +12,7 @@ namespace eDocLib.Tests;
 public class ArchiveTimeStampTests
 {
     [Fact]
-    public void ReadEncapsulatedArchiveTimeStamps_empty_without_archive_element()
+    public async Task ReadEncapsulatedArchiveTimeStamps_empty_without_archive_element()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=a-ts-empty", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -85,7 +85,7 @@ public class ArchiveTimeStampTests
         };
 
         XadesSignature xs = sig;
-        var result = SignatureValidator.Validate(xs, new Dictionary<string, byte[]> { ["doc.txt"] = payload }, policy);
+        var result = await SignatureValidator.ValidateAsync(xs, new Dictionary<string, byte[]> { ["doc.txt"] = payload }, policy);
         Assert.True(result.Success);
         Assert.Equal(1, result.ArchiveTimeStampCount);
         Assert.True(result.ArchiveTimeStampsCmsValid);
@@ -119,7 +119,7 @@ public class ArchiveTimeStampTests
         };
 
         XadesSignature xs = sig;
-        var result = SignatureValidator.Validate(xs, new Dictionary<string, byte[]> { ["doc.txt"] = payload }, policy);
+        var result = await SignatureValidator.ValidateAsync(xs, new Dictionary<string, byte[]> { ["doc.txt"] = payload }, policy);
         Assert.False(result.Success);
         Assert.False(result.ArchiveTimeStampImprintsValid);
     }
@@ -153,7 +153,7 @@ public class ArchiveTimeStampTests
         };
 
         XadesSignature xs = sig;
-        var result = SignatureValidator.Validate(xs, new Dictionary<string, byte[]> { ["doc.txt"] = payload }, policy);
+        var result = await SignatureValidator.ValidateAsync(xs, new Dictionary<string, byte[]> { ["doc.txt"] = payload }, policy);
         Assert.True(result.Success);
         Assert.Equal(2, result.ArchiveTimeStampCount);
         Assert.True(result.ArchiveTimeStampImprintsValid);
