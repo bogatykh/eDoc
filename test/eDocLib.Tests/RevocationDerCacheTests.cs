@@ -165,6 +165,15 @@ public class RevocationDerCacheTests
             await loose.SetAsync("y", new byte[] { 2 });
             await loose.SetAsync("z", new byte[] { 3 });
 
+            // Eviction order is LastWriteTimeUtc (then path). On Windows three rapid writes often share one tick,
+            // so tie-break is filename — not "last SetAsync wins". Pin ages like the other cache tests.
+            var pathX = Directory.GetFiles(dir, "*.der").Single(f => File.ReadAllBytes(f).AsSpan().SequenceEqual(new byte[] { 1 }));
+            var pathY = Directory.GetFiles(dir, "*.der").Single(f => File.ReadAllBytes(f).AsSpan().SequenceEqual(new byte[] { 2 }));
+            var pathZ = Directory.GetFiles(dir, "*.der").Single(f => File.ReadAllBytes(f).AsSpan().SequenceEqual(new byte[] { 3 }));
+            File.SetLastWriteTimeUtc(pathX, DateTime.UtcNow.AddHours(-2));
+            File.SetLastWriteTimeUtc(pathY, DateTime.UtcNow.AddHours(-1));
+            File.SetLastWriteTimeUtc(pathZ, DateTime.UtcNow);
+
             var strict = new DirectoryRevocationDerCache(dir, new RevocationDerCacheDirectoryOptions { MaxEntryCount = 1 });
             await strict.PurgeExpiredEntriesAsync();
             Assert.Single(Directory.GetFiles(dir, "*.der"));
