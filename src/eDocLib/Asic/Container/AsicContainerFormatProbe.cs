@@ -22,6 +22,7 @@ internal static class AsicContainerFormatProbe
     /// Returns <c>true</c> when the stream looks like an ASiC-E container: first payload entry is stored <c>mimetype</c>
     /// with content <see cref="AsicContainer.MimeType"/>, and <c>META-INF/manifest.xml</c> appears among the first
     /// <paramref name="maxZipEntriesToScan"/> file entries (directory entries do not count toward the limit).
+    /// The ZIP central directory must list exactly one <c>mimetype</c> file entry (rejects duplicate or missing catalog rows).
     /// </summary>
     public static bool TryDetectAsicE(Stream stream, int maxZipEntriesToScan, out AsicEProbeResult result)
     {
@@ -102,6 +103,41 @@ internal static class AsicContainerFormatProbe
             {
                 result = new AsicEProbeResult(false, true, false,
                     $"\"{manifestPath}\" not found within the first {maxZipEntriesToScan} file entries after mimetype.");
+                return false;
+            }
+
+            stream.Position = start;
+            int mimetypeCatalogCount;
+            try
+            {
+                using var catalog = new ZipFile(stream, leaveOpen: true, StringCodec.Default);
+                mimetypeCatalogCount = 0;
+                foreach (ZipEntry e in catalog)
+                {
+                    if (e.IsDirectory)
+                    {
+                        continue;
+                    }
+
+                    if (string.Equals(e.Name, AsicContainer.MimeTypeFileName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        mimetypeCatalogCount++;
+                    }
+                }
+            }
+            catch (ZipException ex)
+            {
+                result = new AsicEProbeResult(false, true, true, "ZIP central directory could not be read: " + ex.Message);
+                return false;
+            }
+
+            if (mimetypeCatalogCount != 1)
+            {
+                result = new AsicEProbeResult(
+                    false,
+                    true,
+                    true,
+                    $"Expected exactly one \"{AsicContainer.MimeTypeFileName}\" entry; ZIP catalog reports {mimetypeCatalogCount}.");
                 return false;
             }
 

@@ -413,8 +413,8 @@ internal static class Program
     }
 
     /// <summary>
-    /// Degenerate ASiC-E: two ZIP entries named <c>mimetype</c> before the manifest; the second body overwrites
-    /// the parsed MIME string and fails validation (distinct from <see cref="BuildWrongMimeContentZip"/> where the first entry is wrong).
+    /// Degenerate ASiC-E: two ZIP entries named <c>mimetype</c> before the manifest; the reader rejects the duplicate entry
+    /// (distinct from <see cref="BuildWrongMimeContentZip"/> where the sole <c>mimetype</c> body is wrong).
     /// </summary>
     private static byte[] BuildSecondMimetypeOverwritesWithBadContent(byte[] payload, X509Certificate2 cert)
     {

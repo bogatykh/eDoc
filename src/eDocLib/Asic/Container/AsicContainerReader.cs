@@ -11,7 +11,7 @@ using eDocLib.Asic.Manifest;
 
 namespace eDocLib.Asic.Container {
     /// <summary>
-    /// ASiC container reader. Validates MIME type, first ZIP entry (<c>mimetype</c>, stored),
+    /// ASiC container reader. Validates MIME type, first ZIP entry (<c>mimetype</c>, stored; at most one such entry),
     /// manifest presence, each payload file listed in the manifest, and each non–META-INF manifest path
     /// (except <c>/</c> and <c>mimetype</c>) present as a payload entry.
     /// Payload files are exposed as <see cref="IDataFile.Stream"/>; depending on size and <see cref="AsicContainer.DefaultPayloadMemoryThresholdBytes"/>,
@@ -47,6 +47,8 @@ namespace eDocLib.Asic.Container {
         private string? _firstNonDirectoryEntryName;
         /// <summary>Stores the first non directory compression.</summary>
         private CompressionMethod? _firstNonDirectoryCompression;
+        /// <summary>Whether a <c>mimetype</c> local file entry has already been consumed (ASiC-E allows at most one).</summary>
+        private bool _mimetypeZipEntryConsumed;
 
         /// <summary>Initializes a new ASiC container reader instance.</summary>
         /// <param name="stream">Readable ZIP stream (typically positioned at the start of the ASiC package).</param>
@@ -141,12 +143,18 @@ namespace eDocLib.Asic.Container {
         /// <summary>Reads mime type.</summary>
         private void ReadMimeType(ZipEntry entry)
         {
+            if (_mimetypeZipEntryConsumed)
+            {
+                throw new AsicException($"Duplicate ZIP entry \"{AsicContainer.MimeTypeFileName}\".");
+            }
+
             using var ms = new MemoryStream();
             _zipInputStream.CopyTo(ms);
             var raw = ms.TryGetBuffer(out var seg)
                 ? Utf8Encoding.GetString(seg.AsSpan())
                 : Utf8Encoding.GetString(ms.ToArray());
             _mimeType = raw.TrimStart('\uFEFF').Trim();
+            _mimetypeZipEntryConsumed = true;
         }
 
         /// <summary>Reads manifest.</summary>

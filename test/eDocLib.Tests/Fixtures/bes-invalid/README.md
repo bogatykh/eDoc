@@ -10,7 +10,7 @@ Binary ZIPs that are **intentionally broken** for regression on reader and valid
 | `invalid-duplicate-payload-name.edoc` | Two ZIP entries with the same payload name (`doc.txt`). |
 | `invalid-digest-mismatch.edoc` | Well-formed container; first byte of `payload.bin` flipped after signing. |
 | `invalid-truncated-zip.edoc` | Truncation of an otherwise valid container (ZIP structure incomplete). |
-| `invalid-two-mimetype-entries.edoc` | Two stored ZIP entries named `mimetype` before the manifest; the second body is not ASiC-E (parsed value overwritten). |
+| `invalid-two-mimetype-entries.edoc` | Two stored ZIP entries named `mimetype` before the manifest; reader rejects the duplicate entry (second body is not ASiC-E). |
 | `invalid-missing-manifest.edoc` | Valid `mimetype`, payload, and signature ZIP entries — **no** `META-INF/manifest.xml`. |
 | `invalid-signature-uri-mismatch.edoc` | Manifest lists `payload.bin`, ZIP holds `payload.bin`, but the detached signature’s `ds:Reference` URIs target `wrong-uri.bin`. |
 | `invalid-mimetype-asic-s-body.edoc` | First entry is stored `mimetype`, but body is `application/vnd.etsi.asic-s+zip` (ASiC-S) instead of ASiC-E. |

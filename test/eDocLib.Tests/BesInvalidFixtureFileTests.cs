@@ -91,7 +91,8 @@ public class BesInvalidFixtureFileTests
 
         using var fs = File.OpenRead(path);
         var ex = Assert.Throws<AsicException>(() => new Edoc(fs));
-        Assert.Contains("Invalid MIME type", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Duplicate", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("mimetype", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
