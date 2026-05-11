@@ -2,7 +2,6 @@ using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using Org.BouncyCastle.Ocsp;
 using Org.BouncyCastle.Utilities;
-using eDocLib.Revocation.Protocols.Der;
 using eDocLib.Revocation.Protocols.Ocsp;
 
 namespace eDocLib.Revocation.Verify;
@@ -10,41 +9,6 @@ namespace eDocLib.Revocation.Verify;
 /// <summary>Partial class: OCSP blob verification logic shared by embedded revocation checks.</summary>
 internal static partial class EmbeddedRevocationVerifier
 {
-    /// <summary>Returns whether the OCSP list verifies the signer.</summary>
-    private static bool OcspListVerified(
-        IReadOnlyList<byte[]> ocspDerBlobs,
-        X509Certificate2 signingCertificate,
-        IReadOnlyList<X509Certificate2> chainFromLeaf,
-        EmbeddedRevocationVerificationOptions? verificationOptions,
-        out string? error)
-    {
-        error = null;
-        string? lastErr = null;
-        var anyDer = false;
-        foreach (var der in ocspDerBlobs)
-        {
-            if (der is not { Length: > 0 })
-            {
-                continue;
-            }
-
-            anyDer = true;
-            if (TryVerifyOneOcsp(der, signingCertificate, chainFromLeaf, verificationOptions, out lastErr))
-            {
-                return true;
-            }
-        }
-
-        if (!anyDer)
-        {
-            error = "Embedded OCSP list contains no non-empty DER blobs.";
-            return false;
-        }
-
-        error = lastErr ?? "No embedded OCSP response verified for the signing certificate.";
-        return false;
-    }
-
     /// <summary>Attempts to verify one OCSP.</summary>
     internal static bool TryVerifyOneOcsp(
         byte[] der,
@@ -102,29 +66,12 @@ internal static partial class EmbeddedRevocationVerifier
         using var chain = new X509Chain();
         chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
 
-        if (options.ResponderChainExtraStore is { Count: > 0 })
-        {
-            foreach (var c in options.ResponderChainExtraStore)
-            {
-                chain.ChainPolicy.ExtraStore.Add(c);
-            }
-        }
-
-        if (options.ResponderChainTrustAnchors is { Count: > 0 })
-        {
-            chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
-            foreach (var a in options.ResponderChainTrustAnchors)
-            {
-                chain.ChainPolicy.CustomTrustStore.Add(a);
-            }
-        }
+        X509ChainBuildHelpers.ApplyExtraStore(chain.ChainPolicy, options.ResponderChainExtraStore);
+        X509ChainBuildHelpers.ApplyTrustAnchors(chain.ChainPolicy, options.ResponderChainTrustAnchors);
 
         if (!chain.Build(responder))
         {
-            var st = chain.ChainStatus.Length > 0
-                ? string.Join("; ", chain.ChainStatus.Select(s => s.StatusInformation.Trim()))
-                : "Unknown chain error.";
-            error = "OCSP responder PKIX validation failed: " + st;
+            error = "OCSP responder PKIX validation failed: " + X509ChainBuildHelpers.FormatChainStatus(chain);
             return false;
         }
 

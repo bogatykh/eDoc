@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
 using System.Threading;
 
 namespace eDocLib.Trust.Tsl;
@@ -82,7 +80,7 @@ public sealed class CachingTslTrustedListProvider : ITrustedListProvider
     /// <summary>Gets cache file path.</summary>
     private string GetCacheFilePath(string territory)
     {
-        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(territory.Trim())));
+        var hash = CacheFileNames.Sha256HexKey(territory.Trim());
         return Path.Combine(_cacheDirectory, hash + ".tsl.xml");
     }
 }

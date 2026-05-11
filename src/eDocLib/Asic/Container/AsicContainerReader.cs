@@ -207,7 +207,7 @@ namespace eDocLib.Asic.Container {
                 catch
                 {
                     // Best-effort temp cleanup before rethrow; DeleteOnClose only triggers if Open succeeded.
-                    TryDeleteFile(tmp);
+                    IoSafe.TryDeleteFile(tmp);
                     throw;
                 }
             }
@@ -224,21 +224,6 @@ namespace eDocLib.Asic.Container {
             }
 
             _dataFilesOrdered.Add(dataFile);
-        }
-
-        /// <summary>Attempts to delete file.</summary>
-        private static void TryDeleteFile(string path)
-        {
-            try
-            {
-                File.Delete(path);
-            }
-            catch (IOException)
-            {
-            }
-            catch (UnauthorizedAccessException)
-            {
-            }
         }
 
         /// <summary>Reads signature.</summary>

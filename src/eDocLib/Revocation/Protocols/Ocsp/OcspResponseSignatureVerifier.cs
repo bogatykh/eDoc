@@ -5,7 +5,6 @@ using Org.BouncyCastle.Ocsp;
 using Org.BouncyCastle.X509;
 using Org.BouncyCastle.X509.Store;
 using DerX509Certificate = Org.BouncyCastle.X509.X509Certificate;
-using eDocLib.Revocation.Protocols.Der;
 
 namespace eDocLib.Revocation.Protocols.Ocsp;
 

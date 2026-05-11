@@ -84,30 +84,7 @@ internal class XadesSignature : ISignature
 
     /// <summary>Raw octets inside <c>ds:SignatureValue</c> (Base64-decoded).</summary>
     /// <exception cref="InvalidOperationException">Element is missing or not valid Base64.</exception>
-    public byte[] GetSignatureValueOctets()
-    {
-        var owner = GetSignatureOwnerDocument();
-        var nodes = owner.GetElementsByTagName("SignatureValue", SignedXml.XmlDsigNamespaceUrl);
-        if (nodes.Count == 0 || nodes[0] is not XmlElement el)
-        {
-            throw new InvalidOperationException("ds:SignatureValue is missing.");
-        }
-
-        var text = el.InnerText.Trim();
-        if (text.Length == 0)
-        {
-            throw new InvalidOperationException("ds:SignatureValue is empty.");
-        }
-
-        try
-        {
-            return Convert.FromBase64String(text);
-        }
-        catch (FormatException ex)
-        {
-            throw new InvalidOperationException("ds:SignatureValue is not valid Base64.", ex);
-        }
-    }
+    public byte[] GetSignatureValueOctets() => SignatureValueReader.ReadOctetsOrThrow(GetSignatureOwnerDocument());
 
     /// <summary>DER of each <c>xades:EncapsulatedX509Certificate</c> under unsigned <c>CertificateValues</c>.</summary>
     public IReadOnlyList<byte[]> UnsignedEncapsulatedX509Der =>

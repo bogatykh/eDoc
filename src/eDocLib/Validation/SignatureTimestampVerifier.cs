@@ -188,24 +188,13 @@ internal static class SignatureTimestampVerifier
         var tsaRoots = policy.TsaTrustAnchors is { Count: > 0 }
             ? policy.TsaTrustAnchors
             : policy.CustomTrustAnchors;
-
-        if (tsaRoots is { Count: > 0 })
-        {
-            chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
-            foreach (X509Certificate2 anchor in tsaRoots)
-            {
-                chain.ChainPolicy.CustomTrustStore.Add(anchor);
-            }
-        }
+        X509ChainBuildHelpers.ApplyTrustAnchors(chain.ChainPolicy, tsaRoots);
 
         var chainBuilt = chain.Build(dotnetTsa);
         certificateChain = CertificateChainDiagnostics.FromChain(chain);
         if (!chainBuilt)
         {
-            var status = chain.ChainStatus.Length > 0
-                ? string.Join("; ", chain.ChainStatus.Select(s => s.StatusInformation.Trim()))
-                : "Unknown chain error.";
-            error = "TSA certificate chain validation failed: " + status;
+            error = "TSA certificate chain validation failed: " + X509ChainBuildHelpers.FormatChainStatus(chain);
             chainValid = false;
             return false;
         }
@@ -317,37 +306,8 @@ internal static class SignatureTimestampVerifier
     }
 
     /// <summary>Attempts to get signature value octets.</summary>
-    private static bool TryGetSignatureValueOctets(XmlDocument signatureDocument, out byte[] octets, out string? error)
-    {
-        octets = [];
-        error = null;
-
-        var sigValueNodes = signatureDocument.GetElementsByTagName("SignatureValue", SignedXml.XmlDsigNamespaceUrl);
-        if (sigValueNodes.Count == 0 || sigValueNodes[0] is not XmlElement)
-        {
-            error = "SignatureValue is missing.";
-            return false;
-        }
-
-        var svText = ((XmlElement)sigValueNodes[0]!).InnerText.Trim();
-        if (svText.Length == 0)
-        {
-            error = "SignatureValue is empty.";
-            return false;
-        }
-
-        try
-        {
-            octets = Convert.FromBase64String(svText);
-        }
-        catch (FormatException)
-        {
-            error = "SignatureValue is not valid Base64.";
-            return false;
-        }
-
-        return true;
-    }
+    private static bool TryGetSignatureValueOctets(XmlDocument signatureDocument, out byte[] octets, out string? error) =>
+        SignatureValueReader.TryReadOctets(signatureDocument, out octets, out error);
 
     /// <summary>Attempts to get encapsulated timestamp DER.</summary>
     private static bool TryGetEncapsulatedTimestampDer(XmlDocument signatureDocument, out byte[] tokenDer, out string? error)

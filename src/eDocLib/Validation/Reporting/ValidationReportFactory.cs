@@ -399,10 +399,16 @@ internal static class ValidationReportFactory
                 $"Policy on; OCSP blobs={r!.EmbeddedOcspArtifactCount}, CRL blobs={r.EmbeddedCrlArtifactCount}. "
                 + DescribeTri(result.UnsignedRevocationArtifactsValid, "cryptographic check");
             parts.Add($"Embedded RevocationValues: OCSP={r.EmbeddedOcspArtifactCount}, CRL={r.EmbeddedCrlArtifactCount}.");
-            embSt = TriToAggregate(result.UnsignedRevocationArtifactsValid);
+            embSt = Tri(result.UnsignedRevocationArtifactsValid);
         }
 
-        children.Add(BuildEmbeddedRevocationUnsignedNode(embSt, embDesc, r));
+        children.Add(
+            BuildRevocationArtifactNode(
+                branchType: ValidationType.SignatureRevocationEmbeddedUnsigned,
+                artifactType: ValidationType.SignatureRevocationEmbeddedUnsignedArtifact,
+                embSt,
+                embDesc,
+                r?.EmbeddedUnsignedArtifactOutcomes));
 
         // Application-controlled online revocation
         ValidationStatus onlineSt;
@@ -430,10 +436,16 @@ internal static class ValidationReportFactory
                 + $"non-empty OCSP={r?.HasNonEmptyOnlineFetchedRevocation == true}, "
                 + $"counts OCSP={r?.OnlineFetchedOcspCount}, CRL={r?.OnlineFetchedCrlCount}.";
             parts.Add($"Online fetch: OCSP={r?.OnlineFetchedOcspCount}, CRL={r?.OnlineFetchedCrlCount}.");
-            onlineSt = TriToAggregate(result.ApplicationOnlineRevocationValid);
+            onlineSt = Tri(result.ApplicationOnlineRevocationValid);
         }
 
-        children.Add(BuildApplicationOnlineRevocationNode(onlineSt, onlineDesc, r));
+        children.Add(
+            BuildRevocationArtifactNode(
+                branchType: ValidationType.SignatureRevocationApplicationOnline,
+                artifactType: ValidationType.SignatureRevocationApplicationOnlineArtifact,
+                onlineSt,
+                onlineDesc,
+                r?.OnlineFetchedArtifactOutcomes));
 
         var st = AggregateRevocationBranchStatus(result, policy);
 
@@ -445,55 +457,29 @@ internal static class ValidationReportFactory
             reasons: SingleReason(result.Error));
     }
 
-    /// <summary>Builds embedded revocation unsigned node.</summary>
-    private static ValidationResultNode BuildEmbeddedRevocationUnsignedNode(
-        ValidationStatus embSt,
-        string embDesc,
-        RevocationValidationReport? r)
+    /// <summary>
+    /// Renders one revocation source as either a leaf (when no per-artifact outcomes are available) or a branch
+    /// with one leaf per <see cref="RevocationArtifactOutcome"/>.
+    /// </summary>
+    private static ValidationResultNode BuildRevocationArtifactNode(
+        ValidationType branchType,
+        ValidationType artifactType,
+        ValidationStatus status,
+        string description,
+        IReadOnlyList<RevocationArtifactOutcome>? outcomes)
     {
-        if (r?.EmbeddedUnsignedArtifactOutcomes is { Count: > 0 } embOut)
+        if (outcomes is { Count: > 0 })
         {
-            var artifactChildren = embOut
+            var artifactChildren = outcomes
                 .Select(o => ValidationResultNode.Leaf(
-                    ValidationType.SignatureRevocationEmbeddedUnsignedArtifact,
+                    artifactType,
                     o.Success ? ValidationStatus.Passed : ValidationStatus.Failed,
                     description: DescribeRevocationArtifactOutcome(o)))
                 .ToArray();
-            return ValidationResultNode.Branch(
-                ValidationType.SignatureRevocationEmbeddedUnsigned,
-                embSt,
-                artifactChildren,
-                description: embDesc);
+            return ValidationResultNode.Branch(branchType, status, artifactChildren, description: description);
         }
 
-        return ValidationResultNode.Leaf(ValidationType.SignatureRevocationEmbeddedUnsigned, embSt, description: embDesc);
-    }
-
-    /// <summary>Builds application online revocation node.</summary>
-    private static ValidationResultNode BuildApplicationOnlineRevocationNode(
-        ValidationStatus onlineSt,
-        string onlineDesc,
-        RevocationValidationReport? r)
-    {
-        if (r?.OnlineFetchedArtifactOutcomes is { Count: > 0 } onOut)
-        {
-            var artifactChildren = onOut
-                .Select(o => ValidationResultNode.Leaf(
-                    ValidationType.SignatureRevocationApplicationOnlineArtifact,
-                    o.Success ? ValidationStatus.Passed : ValidationStatus.Failed,
-                    description: DescribeRevocationArtifactOutcome(o)))
-                .ToArray();
-            return ValidationResultNode.Branch(
-                ValidationType.SignatureRevocationApplicationOnline,
-                onlineSt,
-                artifactChildren,
-                description: onlineDesc);
-        }
-
-        return ValidationResultNode.Leaf(
-            ValidationType.SignatureRevocationApplicationOnline,
-            onlineSt,
-            description: onlineDesc);
+        return ValidationResultNode.Leaf(branchType, status, description: description);
     }
 
     /// <summary>Describes revocation artifact outcome.</summary>
@@ -533,15 +519,6 @@ internal static class ValidationReportFactory
 
         return ValidationStatus.Indeterminate;
     }
-
-    /// <summary>Maps a nullable boolean to aggregate status.</summary>
-    private static ValidationStatus TriToAggregate(bool? value) =>
-        value switch
-        {
-            true => ValidationStatus.Passed,
-            false => ValidationStatus.Failed,
-            _ => ValidationStatus.Unchecked,
-        };
 
     /// <summary>Describes tri.</summary>
     private static string DescribeTri(bool? value, string label) =>

@@ -85,8 +85,7 @@ internal static class ArchiveTimestampImprintVerifier
     /// <summary>Lists archive time stamp elements.</summary>
     private static List<XmlElement> ListArchiveTimeStampElements(XmlDocument doc)
     {
-        var nsm = new XmlNamespaceManager(doc.NameTable);
-        nsm.AddNamespace("xades", XadesSignature.XadesNamespaceUrl);
+        var nsm = XadesXmlNamespaces.ForXades(doc.NameTable);
         var nodes = doc.SelectNodes("//xades:ArchiveTimeStamp", nsm);
         var list = new List<XmlElement>();
         if (nodes is null)

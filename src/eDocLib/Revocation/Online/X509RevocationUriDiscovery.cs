@@ -2,7 +2,6 @@ using System.Security.Cryptography.X509Certificates;
 using Org.BouncyCastle.Asn1;
 using Org.BouncyCastle.Asn1.X509;
 using Org.BouncyCastle.X509;
-using eDocLib.Revocation.Protocols.Der;
 
 namespace eDocLib.Revocation.Online;
 
@@ -40,50 +39,35 @@ internal static class X509RevocationUriDiscovery
             return [];
         }
 
-        var list = new List<string>();
-        Asn1Object obj;
+        AuthorityInformationAccess aia;
         try
         {
-            obj = Asn1Object.FromByteArray(raw.GetOctets());
+            // Extension values are wrapped OCTET STRINGs; BC's parser tolerates the inner SEQUENCE.
+            aia = AuthorityInformationAccess.GetInstance(Asn1Object.FromByteArray(raw.GetOctets()));
         }
         catch (Exception)
         {
             return [];
         }
 
-        if (obj is not Asn1Sequence seq)
+        var list = new List<string>();
+        foreach (var ad in aia.GetAccessDescriptions())
         {
-            return [];
-        }
-
-        for (var i = 0; i < seq.Count; i++)
-        {
-            if (seq[i] is not Asn1Sequence pair || pair.Count < 2)
+            if (!string.Equals(ad.AccessMethod.Id, OcspAccessMethodOid, StringComparison.Ordinal))
             {
                 continue;
             }
 
-            if (pair[0] is not DerObjectIdentifier method)
+            var gn = ad.AccessLocation;
+            if (gn.TagNo != GeneralName.UniformResourceIdentifier)
             {
                 continue;
             }
 
-            if (!string.Equals(method.Id, OcspAccessMethodOid, StringComparison.Ordinal))
+            var s = DerIA5String.GetInstance(gn.Name).GetString();
+            if (!string.IsNullOrWhiteSpace(s))
             {
-                continue;
-            }
-
-            // accessLocation is a CHOICE; production certs often encode it as a tagged GeneralName.
-            var gn = pair[1] is Asn1TaggedObject taggedLoc
-                ? GeneralName.GetInstance(taggedLoc)
-                : GeneralName.GetInstance(pair[1]);
-            if (gn.TagNo == GeneralName.UniformResourceIdentifier)
-            {
-                var s = DerIA5String.GetInstance(gn.Name).GetString();
-                if (!string.IsNullOrWhiteSpace(s))
-                {
-                    list.Add(s.Trim());
-                }
+                list.Add(s.Trim());
             }
         }
 

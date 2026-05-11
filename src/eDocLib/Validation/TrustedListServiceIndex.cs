@@ -1,9 +1,8 @@
 using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using System.Xml;
 using System.Xml.Linq;
+using eDocLib.Trust.Tsl;
 
 namespace eDocLib.Validation;
 
@@ -13,8 +12,8 @@ namespace eDocLib.Validation;
 /// </summary>
 public sealed class TrustedListServiceIndex
 {
-    /// <summary>Stores the TSL ns.</summary>
-    private static readonly XNamespace TslNs = "http://uri.etsi.org/02231/v2#";
+    /// <summary>ETSI TSL namespace alias.</summary>
+    private static readonly XNamespace TslNs = TslXmlNamespace.Tsl;
 
     /// <summary>Stores the by thumbprint.</summary>
     private readonly Dictionary<string, TrustedListQualification> _byThumbprint;
@@ -55,7 +54,7 @@ public sealed class TrustedListServiceIndex
 
             foreach (var certEl in svcInfo.Descendants(TslNs + "X509Certificate"))
             {
-                var text = CollapseBase64(certEl.Value);
+                var text = TslXmlText.CollapseBase64Whitespace(certEl.Value);
                 if (text.Length == 0)
                 {
                     continue;
@@ -190,37 +189,7 @@ public sealed class TrustedListServiceIndex
     }
 
     /// <summary>Attempts to parse status starting time.</summary>
-    private static DateTimeOffset? TryParseStatusStartingTime(XElement? el)
-    {
-        if (el is null)
-        {
-            return null;
-        }
-
-        var v = el.Value.Trim();
-        if (v.Length == 0)
-        {
-            return null;
-        }
-
-        if (DateTimeOffset.TryParse(
-                v,
-                CultureInfo.InvariantCulture,
-                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
-                out var dto))
-        {
-            return dto;
-        }
-
-        try
-        {
-            return XmlConvert.ToDateTimeOffset(v);
-        }
-        catch (FormatException)
-        {
-            return null;
-        }
-    }
+    private static DateTimeOffset? TryParseStatusStartingTime(XElement? el) => TslXmlText.TryParseUtcDateTime(el);
 
     /// <summary>Loads XML from a stream (whitespace may be normalized; use for indexing only, not for signature verification).</summary>
     public static TrustedListServiceIndex FromStream(Stream stream)
@@ -241,19 +210,4 @@ public sealed class TrustedListServiceIndex
 
     /// <summary>Thumbprints (hex) that have at least one <c>ServiceInformation</c> entry.</summary>
     public IReadOnlyCollection<string> ListedThumbprints => _byThumbprint.Keys;
-
-    /// <summary>Collapses base64.</summary>
-    private static string CollapseBase64(string s)
-    {
-        var sb = new System.Text.StringBuilder(s.Length);
-        foreach (var ch in s)
-        {
-            if (ch is not '\r' and not '\n' and not ' ' and not '\t')
-            {
-                sb.Append(ch);
-            }
-        }
-
-        return sb.ToString();
-    }
 }

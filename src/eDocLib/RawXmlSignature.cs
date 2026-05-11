@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Security.Cryptography.X509Certificates;
-using System.Security.Cryptography.Xml;
 using System.Xml;
 using eDocLib.Asic.Xades;
 
@@ -29,7 +28,7 @@ internal sealed class RawXmlSignature : ISignature
     {
         get
         {
-            var nsm = CreateDsNamespaceManager(_document);
+            var nsm = XmlDsigXmlNamespaces.ForDs(_document.NameTable);
             var node = _document.SelectSingleNode("//ds:SignedInfo/ds:SignatureMethod", nsm);
             return node?.Attributes?["Algorithm"]?.Value ?? string.Empty;
         }
@@ -56,13 +55,5 @@ internal sealed class RawXmlSignature : ISignature
 
         using var writer = XmlWriter.Create(stream, settings);
         _document.Save(writer);
-    }
-
-    /// <summary>Creates DSig namespace manager.</summary>
-    private static XmlNamespaceManager CreateDsNamespaceManager(XmlDocument doc)
-    {
-        var nsm = new XmlNamespaceManager(doc.NameTable);
-        nsm.AddNamespace("ds", SignedXml.XmlDsigNamespaceUrl);
-        return nsm;
     }
 }

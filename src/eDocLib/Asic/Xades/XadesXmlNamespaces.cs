@@ -1,4 +1,3 @@
-using System.Security.Cryptography.Xml;
 using System.Xml;
 
 namespace eDocLib.Asic.Xades;
@@ -18,7 +17,7 @@ internal static class XadesXmlNamespaces
     internal static XmlNamespaceManager ForXadesAndDs(XmlNameTable nameTable)
     {
         var nsm = ForXades(nameTable);
-        nsm.AddNamespace("ds", SignedXml.XmlDsigNamespaceUrl);
+        nsm.AddNamespace("ds", System.Security.Cryptography.Xml.SignedXml.XmlDsigNamespaceUrl);
         return nsm;
     }
 }

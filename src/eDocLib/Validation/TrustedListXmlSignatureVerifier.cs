@@ -17,8 +17,7 @@ internal static class TrustedListXmlSignatureVerifier
     {
         ArgumentNullException.ThrowIfNull(tslDocument);
         error = null;
-        var nsm = new XmlNamespaceManager(tslDocument.NameTable);
-        nsm.AddNamespace("ds", SignedXml.XmlDsigNamespaceUrl);
+        var nsm = XmlDsigXmlNamespaces.ForDs(tslDocument.NameTable);
         var nodes = tslDocument.SelectNodes("//ds:Signature", nsm);
         if (nodes is null || nodes.Count == 0)
         {

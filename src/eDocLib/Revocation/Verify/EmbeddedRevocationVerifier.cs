@@ -26,41 +26,16 @@ internal static partial class EmbeddedRevocationVerifier
         IReadOnlyList<X509Certificate2> chainFromLeaf,
         out string? error,
         EmbeddedRevocationVerificationOptions? verificationOptions = null,
-        X509Certificate2Collection? additionalCrlIssuerCertificates = null)
-    {
-        ArgumentNullException.ThrowIfNull(signingCertificate);
-        ArgumentNullException.ThrowIfNull(ocspDerBlobs);
-        ArgumentNullException.ThrowIfNull(crlDerBlobs);
-        ArgumentNullException.ThrowIfNull(chainFromLeaf);
-
-        error = null;
-        if (ocspDerBlobs.Count > 0
-            && !OcspListVerified(ocspDerBlobs, signingCertificate, chainFromLeaf, verificationOptions, out error))
-        {
-            return false;
-        }
-
-        foreach (var crlDer in crlDerBlobs)
-        {
-            if (crlDer is not { Length: > 0 })
-            {
-                continue;
-            }
-
-            if (!TryVerifyOneCrlBlob(
-                    crlDer,
-                    signingCertificate,
-                    chainFromLeaf,
-                    additionalCrlIssuerCertificates,
-                    out error))
-            {
-                return false;
-            }
-        }
-
-        error = null;
-        return true;
-    }
+        X509Certificate2Collection? additionalCrlIssuerCertificates = null) =>
+        TryVerifyUnsignedArtifactsDetailed(
+            signingCertificate,
+            ocspDerBlobs,
+            crlDerBlobs,
+            chainFromLeaf,
+            out error,
+            out _,
+            verificationOptions,
+            additionalCrlIssuerCertificates);
 
     /// <summary>Attempts to verify one CRL blob.</summary>
     private static bool TryVerifyOneCrlBlob(

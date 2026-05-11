@@ -76,15 +76,7 @@ public sealed class XadesBesPreparedSignature
 
         var copy = CloneDom();
         var sig = new AsicSignature(copy);
-        var owner = sig.GetSignatureOwnerDocument();
-        var ns = SignedXml.XmlDsigNamespaceUrl;
-        var nodes = owner.GetElementsByTagName("SignatureValue", ns);
-        if (nodes.Count == 0 || nodes[0] is not XmlElement el)
-        {
-            throw new InvalidOperationException("SignatureValue element missing.");
-        }
-
-        el.InnerText = Convert.ToBase64String(signatureValueOctets);
+        SignatureValueReader.WriteOctets(sig.GetSignatureOwnerDocument(), signatureValueOctets);
         return sig;
     }
 

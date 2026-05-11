@@ -8,8 +8,8 @@ namespace eDocLib.Trust.Tsl;
 /// </summary>
 internal static class EuLotlPointerLocator
 {
-    /// <summary>Stores the TSL ns.</summary>
-    private static readonly XNamespace TslNs = "http://uri.etsi.org/02231/v2#";
+    /// <summary>ETSI TSL namespace alias.</summary>
+    private static readonly XNamespace TslNs = TslXmlNamespace.Tsl;
 
     /// <summary>One <c>OtherTSLPointer</c> row from an EU LOTL document.</summary>
     /// <param name="SchemeTerritory">Usually ISO 3166-1 alpha-2.</param>

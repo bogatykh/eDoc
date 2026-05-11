@@ -2,8 +2,6 @@ using System.Security.Cryptography.X509Certificates;
 using Org.BouncyCastle.Crypto.Operators;
 using Org.BouncyCastle.X509;
 
-using eDocLib.Revocation.Protocols.Der;
-
 namespace eDocLib.Revocation.Protocols.Crl;
 
 /// <summary>CRL parsing, issuer signature check, and <see cref="X509Crl.IsRevoked"/> helper.</summary>

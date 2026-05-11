@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Xml.Linq;
+using eDocLib.Trust.Tsl;
 
 namespace eDocLib.Validation;
 
@@ -10,8 +11,8 @@ namespace eDocLib.Validation;
 /// </summary>
 internal static class TrustedListCertificateParser
 {
-    /// <summary>Stores the TSL ns.</summary>
-    private static readonly XNamespace TslNs = "http://uri.etsi.org/02231/v2#";
+    /// <summary>ETSI TSL namespace alias.</summary>
+    private static readonly XNamespace TslNs = TslXmlNamespace.Tsl;
 
     /// <summary>
     /// Reads all <c>X509Certificate</c> children (any depth), decodes base64 DER, skips invalid entries.
@@ -24,7 +25,7 @@ internal static class TrustedListCertificateParser
         var byThumb = new Dictionary<string, X509Certificate2>(StringComparer.OrdinalIgnoreCase);
         foreach (var el in doc.Descendants(TslNs + "X509Certificate"))
         {
-            var text = CollapseBase64(el.Value);
+            var text = TslXmlText.CollapseBase64Whitespace(el.Value);
             if (text.Length == 0)
                 continue;
 
@@ -62,18 +63,5 @@ internal static class TrustedListCertificateParser
         foreach (var c in byThumb.Values)
             col.Add(c);
         return col;
-    }
-
-    /// <summary>Collapses base64.</summary>
-    private static string CollapseBase64(string s)
-    {
-        var sb = new System.Text.StringBuilder(s.Length);
-        foreach (var ch in s)
-        {
-            if (ch is not '\r' and not '\n' and not ' ' and not '\t')
-                sb.Append(ch);
-        }
-
-        return sb.ToString();
     }
 }

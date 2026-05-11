@@ -99,11 +99,7 @@ internal static class ApplicationOnlineRevocation
         }
 
         var issuer = chain.ChainElements[1].Certificate;
-        var path = new X509Certificate2[chain.ChainElements.Count];
-        for (var i = 0; i < chain.ChainElements.Count; i++)
-        {
-            path[i] = chain.ChainElements[i].Certificate;
-        }
+        var path = X509ChainBuildHelpers.ToCertificatePath(chain);
 
         RevocationMaterialFetchResult fetched;
         try

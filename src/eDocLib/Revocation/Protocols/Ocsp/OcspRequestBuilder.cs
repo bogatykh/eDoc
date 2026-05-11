@@ -1,7 +1,6 @@
 using System.Security.Cryptography.X509Certificates;
 using Org.BouncyCastle.Asn1.Oiw;
 using Org.BouncyCastle.Ocsp;
-using eDocLib.Revocation.Protocols.Der;
 
 namespace eDocLib.Revocation.Protocols.Ocsp;
 

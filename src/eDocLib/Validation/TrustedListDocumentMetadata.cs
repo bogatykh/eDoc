@@ -1,6 +1,6 @@
 using System.Globalization;
-using System.Xml;
 using System.Xml.Linq;
+using eDocLib.Trust.Tsl;
 
 namespace eDocLib.Validation;
 
@@ -21,8 +21,8 @@ public sealed record TrustedListDocumentMetadata
     /// <summary>Scheduled next update instant when parseable (often under <c>NextUpdate</c>).</summary>
     public DateTimeOffset? NextUpdate { get; init; }
 
-    /// <summary>Stores the TSL ns.</summary>
-    private static readonly XNamespace TslNs = "http://uri.etsi.org/02231/v2#";
+    /// <summary>ETSI TSL namespace alias.</summary>
+    private static readonly XNamespace TslNs = TslXmlNamespace.Tsl;
 
     /// <summary>Parses scheme-level metadata when <c>SchemeInformation</c> exists.</summary>
     public static TrustedListDocumentMetadata FromXDocument(XDocument doc)
@@ -72,31 +72,5 @@ public sealed record TrustedListDocumentMetadata
     }
 
     /// <summary>Parses date time element.</summary>
-    private static DateTimeOffset? ParseDateTimeElement(XElement? el)
-    {
-        if (el is null)
-        {
-            return null;
-        }
-
-        var v = el.Value.Trim();
-        if (v.Length == 0)
-        {
-            return null;
-        }
-
-        if (DateTimeOffset.TryParse(v, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var dto))
-        {
-            return dto;
-        }
-
-        try
-        {
-            return XmlConvert.ToDateTimeOffset(v);
-        }
-        catch (FormatException)
-        {
-            return null;
-        }
-    }
+    private static DateTimeOffset? ParseDateTimeElement(XElement? el) => TslXmlText.TryParseUtcDateTime(el);
 }

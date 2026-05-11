@@ -222,11 +222,6 @@ internal static class SigningCertificateDigestVerifier
     }
 
     /// <summary>Creates an XML namespace manager for XAdES lookups.</summary>
-    private static XmlNamespaceManager XadesNamespaceManager(XmlDocument doc)
-    {
-        var nsm = new XmlNamespaceManager(doc.NameTable ?? new NameTable());
-        nsm.AddNamespace("xades", XadesSignature.XadesNamespaceUrl);
-        nsm.AddNamespace("ds", SignedXml.XmlDsigNamespaceUrl);
-        return nsm;
-    }
+    private static XmlNamespaceManager XadesNamespaceManager(XmlDocument doc) =>
+        XadesXmlNamespaces.ForXadesAndDs(doc.NameTable ?? new NameTable());
 }

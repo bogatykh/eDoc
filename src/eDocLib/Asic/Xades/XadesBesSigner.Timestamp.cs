@@ -129,25 +129,37 @@ internal static partial class XadesBesSigner
     }
 
     /// <summary>Computes the SHA-256 imprint over SignatureValue.</summary>
-    private static byte[] Sha256ImprintOverSignatureValue(XmlDocument owner)
-    {
-        var sigValueText = GetRequiredElement(owner, "SignatureValue", DsNs).InnerText.Trim();
-        var signatureOctets = Convert.FromBase64String(sigValueText);
-        return SHA256.HashData(signatureOctets);
-    }
+    private static byte[] Sha256ImprintOverSignatureValue(XmlDocument owner) =>
+        SHA256.HashData(SignatureValueReader.ReadOctetsOrThrow(owner));
 
     /// <summary>Appends signature timestamp.</summary>
-    private static void AppendSignatureTimestamp(XmlDocument owner, byte[] timeStampTokenDer, string signatureTimestampId)
+    private static void AppendSignatureTimestamp(XmlDocument owner, byte[] timeStampTokenDer, string signatureTimestampId) =>
+        AppendEncapsulatedTimestamp(owner, "SignatureTimeStamp", signatureTimestampId, timeStampTokenDer);
+
+    /// <summary>
+    /// Appends an XAdES timestamp wrapper element (<c>SignatureTimeStamp</c> or <c>ArchiveTimeStamp</c>) with a
+    /// child <c>EncapsulatedTimeStamp</c> carrying the Base64-encoded RFC 3161 token, under
+    /// <c>UnsignedSignatureProperties</c>.
+    /// </summary>
+    /// <param name="owner">Signature owner document.</param>
+    /// <param name="wrapperLocalName">Local name of the wrapper element (e.g. <c>SignatureTimeStamp</c>, <c>ArchiveTimeStamp</c>).</param>
+    /// <param name="wrapperId">Value of the wrapper element's <c>Id</c> attribute.</param>
+    /// <param name="timeStampTokenDer">RFC 3161 timestamp token, DER-encoded.</param>
+    private static void AppendEncapsulatedTimestamp(
+        XmlDocument owner,
+        string wrapperLocalName,
+        string wrapperId,
+        byte[] timeStampTokenDer)
     {
         var unsignedSigProps = EnsureUnsignedSignatureProperties(owner);
 
-        var sigTs = owner.CreateElement(XadesSignature.XadesPrefix, "SignatureTimeStamp", XadesSignature.XadesNamespaceUrl);
-        sigTs.SetAttribute("Id", signatureTimestampId);
-        unsignedSigProps.AppendChild(sigTs);
+        var wrapper = owner.CreateElement(XadesSignature.XadesPrefix, wrapperLocalName, XadesSignature.XadesNamespaceUrl);
+        wrapper.SetAttribute("Id", wrapperId);
+        unsignedSigProps.AppendChild(wrapper);
 
         var enc = owner.CreateElement(XadesSignature.XadesPrefix, "EncapsulatedTimeStamp", XadesSignature.XadesNamespaceUrl);
         enc.InnerText = Convert.ToBase64String(timeStampTokenDer);
-        sigTs.AppendChild(enc);
+        wrapper.AppendChild(enc);
     }
 
     /// <summary>Finds qualifying properties.</summary>

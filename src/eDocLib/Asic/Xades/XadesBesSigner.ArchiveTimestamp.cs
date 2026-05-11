@@ -71,16 +71,6 @@ internal static partial class XadesBesSigner
     }
 
     /// <summary>Appends archive time stamp.</summary>
-    private static void AppendArchiveTimeStamp(XmlDocument owner, byte[] timeStampTokenDer, string archiveTimeStampId)
-    {
-        var unsignedSigProps = EnsureUnsignedSignatureProperties(owner);
-
-        var arch = owner.CreateElement(XadesSignature.XadesPrefix, "ArchiveTimeStamp", XadesSignature.XadesNamespaceUrl);
-        arch.SetAttribute("Id", archiveTimeStampId);
-        unsignedSigProps.AppendChild(arch);
-
-        var enc = owner.CreateElement(XadesSignature.XadesPrefix, "EncapsulatedTimeStamp", XadesSignature.XadesNamespaceUrl);
-        enc.InnerText = Convert.ToBase64String(timeStampTokenDer);
-        arch.AppendChild(enc);
-    }
+    private static void AppendArchiveTimeStamp(XmlDocument owner, byte[] timeStampTokenDer, string archiveTimeStampId) =>
+        AppendEncapsulatedTimestamp(owner, "ArchiveTimeStamp", archiveTimeStampId, timeStampTokenDer);
 }

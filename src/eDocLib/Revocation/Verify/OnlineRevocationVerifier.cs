@@ -21,28 +21,15 @@ internal static class OnlineRevocationVerifier
         IReadOnlyList<X509Certificate2> chainFromLeaf,
         out string? error,
         EmbeddedRevocationVerificationOptions? verificationOptions = null,
-        X509Certificate2Collection? additionalCrlIssuerCertificates = null)
-    {
-        ArgumentNullException.ThrowIfNull(signingCertificate);
-        ArgumentNullException.ThrowIfNull(chainFromLeaf);
-
-        error = null;
-        if (!HasNonEmptyBlob(fetched.OcspResponses) && !HasNonEmptyBlob(fetched.Crls))
-        {
-            error =
-                "Online revocation: no OCSP or CRL bytes were retrieved (missing AIA/CDP on the certificate, unreachable responders, or HTTP errors).";
-            return false;
-        }
-
-        return EmbeddedRevocationVerifier.TryVerifyUnsignedArtifacts(
+        X509Certificate2Collection? additionalCrlIssuerCertificates = null) =>
+        TryVerifyFetchedDetailed(
             signingCertificate,
-            fetched.OcspResponses,
-            fetched.Crls,
+            fetched,
             chainFromLeaf,
             out error,
+            out _,
             verificationOptions,
             additionalCrlIssuerCertificates);
-    }
 
     /// <summary>
     /// Same as <see cref="TryVerifyFetched"/>, with per-blob <see cref="RevocationArtifactOutcome"/> entries

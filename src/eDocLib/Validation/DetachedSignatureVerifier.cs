@@ -110,98 +110,105 @@ internal static class DetachedSignatureVerifier
         var sigBytes = GetSignatureBytesFromDom(doc);
         var method = signedXml.SignatureMethod ?? string.Empty;
 
-        if (method == SignedXml.XmlDsigRSASHA256Url)
+        if (TryGetRsaHash(method, out var rsaHash))
         {
-            using var rsa = cert.GetRSAPublicKey();
-            if (rsa == null)
-            {
-                error = "Public key is not RSA.";
-                return false;
-            }
-
-            if (!rsa.VerifyData(signedInfoBytes, sigBytes, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1))
-            {
-                error = "RSA signature over SignedInfo is invalid.";
-                return false;
-            }
-
-            return true;
+            return VerifyRsa(cert, signedInfoBytes, sigBytes, rsaHash, out error);
         }
 
-        if (method == XadesSignatureAlgorithms.RsaWithSha384)
+        if (TryGetEcdsaHash(method, out var ecHash))
         {
-            using var rsa = cert.GetRSAPublicKey();
-            if (rsa == null)
-            {
-                error = "Public key is not RSA.";
-                return false;
-            }
-
-            if (!rsa.VerifyData(signedInfoBytes, sigBytes, HashAlgorithmName.SHA384, RSASignaturePadding.Pkcs1))
-            {
-                error = "RSA signature over SignedInfo is invalid.";
-                return false;
-            }
-
-            return true;
-        }
-
-        if (method == XadesSignatureAlgorithms.EcdsaWithSha256)
-        {
-            using var ec = cert.GetECDsaPublicKey();
-            if (ec == null)
-            {
-                error = "Public key is not ECDSA.";
-                return false;
-            }
-
-            if (!ec.VerifyData(signedInfoBytes, sigBytes, HashAlgorithmName.SHA256, DSASignatureFormat.Rfc3279DerSequence))
-            {
-                error = "ECDSA signature over SignedInfo is invalid.";
-                return false;
-            }
-
-            return true;
-        }
-
-        if (method == XadesSignatureAlgorithms.EcdsaWithSha384)
-        {
-            using var ec = cert.GetECDsaPublicKey();
-            if (ec == null)
-            {
-                error = "Public key is not ECDSA.";
-                return false;
-            }
-
-            if (!ec.VerifyData(signedInfoBytes, sigBytes, HashAlgorithmName.SHA384, DSASignatureFormat.Rfc3279DerSequence))
-            {
-                error = "ECDSA signature over SignedInfo is invalid.";
-                return false;
-            }
-
-            return true;
-        }
-
-        if (method == XadesSignatureAlgorithms.EcdsaWithSha512)
-        {
-            using var ec = cert.GetECDsaPublicKey();
-            if (ec == null)
-            {
-                error = "Public key is not ECDSA.";
-                return false;
-            }
-
-            if (!ec.VerifyData(signedInfoBytes, sigBytes, HashAlgorithmName.SHA512, DSASignatureFormat.Rfc3279DerSequence))
-            {
-                error = "ECDSA signature over SignedInfo is invalid.";
-                return false;
-            }
-
-            return true;
+            return VerifyEcdsa(cert, signedInfoBytes, sigBytes, ecHash, out error);
         }
 
         error = $"Unsupported SignatureMethod: {method}";
         return false;
+    }
+
+    /// <summary>Maps an RSA <c>ds:SignatureMethod</c> URI to its <see cref="HashAlgorithmName"/>.</summary>
+    private static bool TryGetRsaHash(string method, out HashAlgorithmName hash)
+    {
+        switch (method)
+        {
+            case XadesSignatureAlgorithms.RsaWithSha256:
+                hash = HashAlgorithmName.SHA256;
+                return true;
+            case XadesSignatureAlgorithms.RsaWithSha384:
+                hash = HashAlgorithmName.SHA384;
+                return true;
+            default:
+                hash = default;
+                return false;
+        }
+    }
+
+    /// <summary>Maps an ECDSA <c>ds:SignatureMethod</c> URI to its <see cref="HashAlgorithmName"/>.</summary>
+    private static bool TryGetEcdsaHash(string method, out HashAlgorithmName hash)
+    {
+        switch (method)
+        {
+            case XadesSignatureAlgorithms.EcdsaWithSha256:
+                hash = HashAlgorithmName.SHA256;
+                return true;
+            case XadesSignatureAlgorithms.EcdsaWithSha384:
+                hash = HashAlgorithmName.SHA384;
+                return true;
+            case XadesSignatureAlgorithms.EcdsaWithSha512:
+                hash = HashAlgorithmName.SHA512;
+                return true;
+            default:
+                hash = default;
+                return false;
+        }
+    }
+
+    /// <summary>Verifies an RSA PKCS#1 v1.5 signature over <paramref name="signedInfoBytes"/>.</summary>
+    private static bool VerifyRsa(
+        X509Certificate2 cert,
+        byte[] signedInfoBytes,
+        byte[] sigBytes,
+        HashAlgorithmName hash,
+        out string? error)
+    {
+        using var rsa = cert.GetRSAPublicKey();
+        if (rsa == null)
+        {
+            error = "Public key is not RSA.";
+            return false;
+        }
+
+        if (!rsa.VerifyData(signedInfoBytes, sigBytes, hash, RSASignaturePadding.Pkcs1))
+        {
+            error = "RSA signature over SignedInfo is invalid.";
+            return false;
+        }
+
+        error = null;
+        return true;
+    }
+
+    /// <summary>Verifies an ECDSA signature (DER <c>SEQUENCE { r, s }</c>) over <paramref name="signedInfoBytes"/>.</summary>
+    private static bool VerifyEcdsa(
+        X509Certificate2 cert,
+        byte[] signedInfoBytes,
+        byte[] sigBytes,
+        HashAlgorithmName hash,
+        out string? error)
+    {
+        using var ec = cert.GetECDsaPublicKey();
+        if (ec == null)
+        {
+            error = "Public key is not ECDSA.";
+            return false;
+        }
+
+        if (!ec.VerifyData(signedInfoBytes, sigBytes, hash, DSASignatureFormat.Rfc3279DerSequence))
+        {
+            error = "ECDSA signature over SignedInfo is invalid.";
+            return false;
+        }
+
+        error = null;
+        return true;
     }
 
     /// <inheritdoc cref="TryVerify(XadesSignature, IReadOnlyDictionary{string, byte[]}, out string?, SignatureTrustPolicy?)"/>
@@ -399,19 +406,12 @@ internal static class DetachedSignatureVerifier
     /// <summary>Gets signature bytes from dom.</summary>
     private static byte[] GetSignatureBytesFromDom(XmlDocument document)
     {
-        var nodes = document.GetElementsByTagName("SignatureValue", SignedXml.XmlDsigNamespaceUrl);
-        if (nodes.Count == 0 || nodes[0] is not XmlElement sv)
+        if (!SignatureValueReader.TryReadOctets(document, out var octets, out var error))
         {
-            throw new CryptographicException("SignatureValue is missing.");
+            throw new CryptographicException(error);
         }
 
-        var text = sv.InnerText.Trim();
-        if (text.Length == 0)
-        {
-            throw new CryptographicException("SignatureValue is empty.");
-        }
-
-        return Convert.FromBase64String(text);
+        return octets;
     }
 
     /// <summary>Gets digest bytes.</summary>

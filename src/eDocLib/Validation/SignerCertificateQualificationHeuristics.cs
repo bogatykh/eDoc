@@ -1,7 +1,6 @@
 using System.Security.Cryptography.X509Certificates;
 using Org.BouncyCastle.Asn1;
 using Org.BouncyCastle.Asn1.X509.Qualified;
-using Org.BouncyCastle.X509;
 
 namespace eDocLib.Validation;
 
@@ -47,7 +46,7 @@ internal static class SignerCertificateQualificationHeuristics
 
         try
         {
-            var bc = new X509CertificateParser().ReadCertificate(cert.RawData);
+            var bc = X509DerReaders.ReadCertificate(cert.RawData);
             var qcOid = new DerObjectIdentifier(QcStatementsExtensionOid);
             var extVal = bc.GetExtensionValue(qcOid);
             if (extVal is null)

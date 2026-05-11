@@ -1,6 +1,4 @@
 using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
 
 namespace eDocLib.Revocation;
 
@@ -60,7 +58,7 @@ public sealed class DirectoryRevocationDerCache : IRevocationDerCache
         {
             if (_options is { DeleteExpiredFileOnRead: true })
             {
-                TryDelete(path);
+                IoSafe.TryDeleteFile(path);
             }
 
             return null;
@@ -188,38 +186,17 @@ public sealed class DirectoryRevocationDerCache : IRevocationDerCache
             }
 
             var victim = entries[0];
-            if (!TryDeleteFile(victim.FullName))
+            if (!IoSafe.TryDeleteFile(victim.FullName))
             {
                 return;
             }
         }
     }
 
-    /// <summary>Attempts to delete.</summary>
-    private static void TryDelete(string path) => _ = TryDeleteFile(path);
-
-    /// <summary>Attempts to delete file.</summary>
-    private static bool TryDeleteFile(string path)
-    {
-        try
-        {
-            File.Delete(path);
-            return true;
-        }
-        catch (IOException)
-        {
-            return false;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return false;
-        }
-    }
-
     /// <summary>Gets path for key.</summary>
     private string GetPathForKey(string key)
     {
-        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(key)));
+        var hash = CacheFileNames.Sha256HexKey(key);
         return Path.Combine(_directory, hash + ".der");
     }
 }

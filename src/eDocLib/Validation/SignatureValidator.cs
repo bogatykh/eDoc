@@ -366,28 +366,14 @@ internal static class SignatureValidator
             AddUnsignedCertificateValuesToExtraStore(signature, chain.ChainPolicy);
         }
 
-        if (policy.ExtraChainCertificates is { Count: > 0 })
-        {
-            foreach (X509Certificate2 extra in policy.ExtraChainCertificates)
-                chain.ChainPolicy.ExtraStore.Add(extra);
-        }
-
-        if (policy.CustomTrustAnchors is { Count: > 0 })
-        {
-            chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
-            foreach (X509Certificate2 anchor in policy.CustomTrustAnchors)
-            {
-                chain.ChainPolicy.CustomTrustStore.Add(anchor);
-            }
-        }
+        X509ChainBuildHelpers.ApplyExtraStore(chain.ChainPolicy, policy.ExtraChainCertificates);
+        X509ChainBuildHelpers.ApplyTrustAnchors(chain.ChainPolicy, policy.CustomTrustAnchors);
 
         var chainOk = chain.Build(signingCert);
         var chainDiag = CertificateChainDiagnostics.FromChain(chain);
         if (!chainOk)
         {
-            var status = chain.ChainStatus.Length > 0
-                ? string.Join("; ", chain.ChainStatus.Select(s => s.StatusInformation.Trim()))
-                : "Unknown chain error.";
+            var status = X509ChainBuildHelpers.FormatChainStatus(chain);
             return StampSlice() with
             {
                 Success = false,
@@ -454,11 +440,7 @@ internal static class SignatureValidator
             var crls = signature.UnsignedEncapsulatedCrlDer;
             if (ocsp.Count > 0 || crls.Count > 0)
             {
-                var path = new X509Certificate2[chain.ChainElements.Count];
-                for (var i = 0; i < chain.ChainElements.Count; i++)
-                {
-                    path[i] = chain.ChainElements[i].Certificate;
-                }
+                var path = X509ChainBuildHelpers.ToCertificatePath(chain);
 
                 if (!EmbeddedRevocationVerifier.TryVerifyUnsignedArtifactsDetailed(
                         signingCert!,
