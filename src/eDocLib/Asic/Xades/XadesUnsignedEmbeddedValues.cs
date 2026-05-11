@@ -43,16 +43,6 @@ internal static class XadesUnsignedEmbeddedValues
     }
 
     /// <summary>
-    /// All <c>xades:EncapsulatedTimeStamp</c> elements in document order (DER inside Base64), including
-    /// <c>SignatureTimeStamp</c> and archive timestamp blocks when present.
-    /// </summary>
-    public static IReadOnlyList<byte[]> ReadEncapsulatedTimeStamps(XmlDocument ownerDocument)
-    {
-        ArgumentNullException.ThrowIfNull(ownerDocument);
-        return ReadBase64ElementsXPath(ownerDocument, "//xades:EncapsulatedTimeStamp");
-    }
-
-    /// <summary>
     /// <c>xades:EncapsulatedTimeStamp</c> under <c>xades:SignatureTimeStamp</c> only (XAdES-T), document order — excludes archive tokens.
     /// </summary>
     public static IReadOnlyList<byte[]> ReadEncapsulatedSignatureTimeStamps(XmlDocument ownerDocument)
@@ -62,39 +52,21 @@ internal static class XadesUnsignedEmbeddedValues
     }
 
     /// <summary>
-    /// Whether the document has at least one decodable <see cref="ReadEncapsulatedSignatureTimeStamps"/> payload (avoids building a list when only presence is needed).
+    /// Whether the document has at least one <c>xades:SignatureTimeStamp/xades:EncapsulatedTimeStamp</c> element
+    /// (regardless of whether its content is valid Base64). Returning <c>true</c> when the element is present but
+    /// malformed lets callers fail validation under <c>SignatureTimestampImprintPolicy.RequireWhenPresent</c>
+    /// rather than silently dropping the timestamp — a tampered unsigned property whose Base64 has been corrupted
+    /// would otherwise be reported as "no timestamp" and skip imprint verification.
     /// </summary>
     public static bool HasEncapsulatedSignatureTimeStamp(XmlDocument ownerDocument)
     {
         ArgumentNullException.ThrowIfNull(ownerDocument);
         var nsm = XadesXmlNamespaces.ForXades(ownerDocument.NameTable);
         var nodes = ownerDocument.SelectNodes(SignatureTimeStampEncapsulatedTimeStampXPath, nsm);
-        if (nodes is null)
-        {
-            return false;
-        }
-
-        foreach (XmlNode n in nodes)
-        {
-            if (n is XmlElement el && Base64Bytes.TryFromBase64Trimmed(el.InnerText, out _))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return nodes is not null && nodes.Count > 0;
     }
 
     private const string SignatureTimeStampEncapsulatedTimeStampXPath = "//xades:SignatureTimeStamp/xades:EncapsulatedTimeStamp";
-
-    /// <summary>
-    /// <c>xades:EncapsulatedTimeStamp</c> elements that are direct children of <c>xades:ArchiveTimeStamp</c> (DER), document order.
-    /// </summary>
-    public static IReadOnlyList<byte[]> ReadEncapsulatedArchiveTimeStamps(XmlDocument ownerDocument)
-    {
-        ArgumentNullException.ThrowIfNull(ownerDocument);
-        return ReadBase64ElementsXPath(ownerDocument, "//xades:ArchiveTimeStamp/xades:EncapsulatedTimeStamp");
-    }
 
     /// <summary>Reads base 64 children.</summary>
     private static IReadOnlyList<byte[]> ReadBase64Children(XmlDocument doc, string containerLocalName, string childLocalName)

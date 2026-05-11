@@ -44,6 +44,45 @@ public sealed class SignatureTrustPolicy
         RevocationMode = X509RevocationMode.NoCheck,
     };
 
+    /// <summary>
+    /// Recommended baseline for Latvian EDOC 2.0 LTV validation:
+    /// cryptographic checks, signer PKIX, XAdES SigningCertificate requirement,
+    /// embedded timestamp imprint + TSA CMS/PKIX checks, and embedded unsigned revocation checks.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This baseline keeps revocation mode at <see cref="X509RevocationMode.NoCheck"/> for deterministic offline validation of
+    /// embedded LT material. Hosts can override with online revocation by cloning this value in an object initializer.
+    /// </para>
+    /// <para>
+    /// When <paramref name="trustedListServiceIndex"/> is provided, signer and TSA listing checks are enabled together with
+    /// <see cref="RequireQualifiedTimestampServiceType"/>: the matched TSA TSL block must be a qualified time-stamping
+    /// service (ETSI <c>TSA/QTST</c>) with a granted-equivalent status. That matches the EDOC 2.0 LV clause
+    /// "kvalificēts laika zīmogs" (qualified time-stamp) in section 2 of the published profile.
+    /// </para>
+    /// </remarks>
+    public static SignatureTrustPolicy ForLatvianEdocLtv(
+        TrustedListServiceIndex? trustedListServiceIndex = null,
+        DateTimeOffset? trustedListQualificationReferenceTimeUtc = null) =>
+        new()
+        {
+            ValidateCertificateChain = true,
+            RevocationMode = X509RevocationMode.NoCheck,
+            RequireXadesSigningCertificate = true,
+            TimestampImprintPolicy = SignatureTimestampImprintPolicy.RequireWhenPresent,
+            ValidateTsaSigner = true,
+            ValidateTsaSignerChain = true,
+            VerifyUnsignedRevocationWhenPresent = true,
+            TrustedListServiceIndex = trustedListServiceIndex,
+            TrustedListQualificationReferenceTimeUtc = trustedListQualificationReferenceTimeUtc,
+            RequireSigningCertificateListedInTrustedList = trustedListServiceIndex is not null,
+            RequireTrustedListServiceStatusGranted = trustedListServiceIndex is not null,
+            RequireTimestampAuthorityCertificateListedInTrustedList = trustedListServiceIndex is not null,
+            RequireTimestampAuthorityServiceStatusGranted = trustedListServiceIndex is not null,
+            RequireQualifiedTimestampServiceType = trustedListServiceIndex is not null,
+            MergeTrustListQualificationUriDefaults = true,
+        };
+
     /// <summary>When <c>true</c>, builds and validates the signer certificate chain.</summary>
     public bool ValidateCertificateChain { get; init; }
 
@@ -311,6 +350,19 @@ public sealed class SignatureTrustPolicy
     }
 
     /// <summary>
+    /// <c>true</c> when any policy field forces the validator to inspect the embedded RFC 3161 token (CMS verification,
+    /// PKIX chain build, or a TSA trusted-list gate). Used by the validation pipeline so that setting only a TSA
+    /// trusted-list gate (without <see cref="ValidateTsaSigner"/>) still triggers CMS verification — a TSL listing
+    /// check on a token whose CMS signature was never verified would be exploitable.
+    /// </summary>
+    internal bool RequiresTsaTokenInspection =>
+        ValidateTsaSigner
+        || ValidateTsaSignerChain
+        || RequireTimestampAuthorityCertificateListedInTrustedList
+        || RequireTimestampAuthorityServiceStatusGranted
+        || RequireQualifiedTimestampServiceType;
+
+    /// <summary>
     /// When <c>true</c>, validation fails if <c>xades:SigningCertificate</c> is missing. When <c>false</c>, a missing element is allowed;
     /// if the element is present, the pipeline still verifies digest and IssuerSerial against <c>KeyInfo</c>.
     /// </summary>
@@ -387,19 +439,35 @@ public sealed class SignatureTrustPolicy
     public X509Certificate2Collection? TsaTrustAnchors { get; init; }
 
     /// <summary>
-    /// When <c>true</c>, each <c>xades:ArchiveTimeStamp</c> RFC 3161 token is verified (CMS and optional PKIX for the TSA certificate).
-    /// Use <see cref="ArchiveTimestampImprintPolicy"/> to also verify the message imprint against the default archive digest input (CAdES / XAdES digest rules).
+    /// When <c>true</c> and <see cref="TrustedListServiceIndex"/> is configured, timestamp validation fails unless the
+    /// TSA certificate from <c>xades:SignatureTimeStamp</c> is listed in the trusted list.
     /// </summary>
-    public bool ValidateArchiveTimeStampCms { get; init; }
+    /// <remarks>
+    /// Setting this flag forces CMS verification of the TSA token (equivalent to setting <see cref="ValidateTsaSigner"/>);
+    /// a TSL listing match on a token whose CMS signature was never verified would be exploitable.
+    /// </remarks>
+    public bool RequireTimestampAuthorityCertificateListedInTrustedList { get; init; }
 
     /// <summary>
-    /// Controls verification of archive time-stamp message imprints vs the library’s default archive digest-input rules (SHA-256 over the profile-defined octets).
-    /// Ignoring imprint does not disable CMS verification (<see cref="ValidateArchiveTimeStampCms"/>); set this to <see cref="ArchiveTimestampImprintPolicy.Ignore"/> only to skip digest-input checks.
+    /// When <c>true</c> together with <see cref="RequireTimestampAuthorityCertificateListedInTrustedList"/> and a configured
+    /// <see cref="TrustedListServiceIndex"/>, the matching TSA trusted-list service must also map to a granted-like status URI.
     /// </summary>
-    public ArchiveTimestampImprintPolicy ArchiveTimestampImprintPolicy { get; init; } = ArchiveTimestampImprintPolicy.RequireWhenPresent;
+    /// <remarks>
+    /// Setting this flag forces CMS verification of the TSA token (equivalent to setting <see cref="ValidateTsaSigner"/>).
+    /// </remarks>
+    public bool RequireTimestampAuthorityServiceStatusGranted { get; init; }
 
     /// <summary>
-    /// After archive CMS verification, build a PKIX chain for each archive TSA certificate (same roots as <see cref="ValidateTsaSignerChain"/>).
+    /// When <c>true</c> and <see cref="TrustedListServiceIndex"/> is configured, the matched TSA TSL service-type must be a
+    /// qualified time-stamping service (eIDAS Article 42 / ETSI <c>TSA/QTST</c>) according to
+    /// <see cref="TslQualificationIndicators.SuggestsQualifiedTimestampService"/>. Non-qualified <c>TSA</c> service entries fail.
+    /// Implies <see cref="RequireTimestampAuthorityCertificateListedInTrustedList"/> for the TSL lookup; combine with
+    /// <see cref="RequireTimestampAuthorityServiceStatusGranted"/> for the full eIDAS Art. 42 conformant gate.
     /// </summary>
-    public bool ValidateArchiveTimeStampChain { get; init; }
+    /// <remarks>
+    /// Required to fulfil the EDOC 2.0 LV LTV clause "kvalificēts laika zīmogs" (qualified time-stamp). Hosts targeting other
+    /// jurisdictions should enable this whenever the published trust list distinguishes qualified TSAs from generic TSAs.
+    /// Setting this flag forces CMS verification of the TSA token (equivalent to setting <see cref="ValidateTsaSigner"/>).
+    /// </remarks>
+    public bool RequireQualifiedTimestampServiceType { get; init; }
 }

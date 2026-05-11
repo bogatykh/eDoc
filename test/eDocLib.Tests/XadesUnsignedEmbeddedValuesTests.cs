@@ -1,77 +1,217 @@
+using System;
+using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Xml;
-using eDocLib.Asic.Container;
 using eDocLib.Asic.Xades;
+using eDocLib.Timestamp;
+using eDocLib.Validation;
 using Xunit;
 
-namespace eDocLib;
+namespace eDocLib.Tests;
 
+/// <summary>
+/// Coverage for <see cref="XadesUnsignedEmbeddedValues"/> reader semantics, in particular the contract that
+/// <see cref="XadesUnsignedEmbeddedValues.HasEncapsulatedSignatureTimeStamp"/> reflects element presence,
+/// not Base64 validity. Treating malformed Base64 as "no timestamp" would let an attacker who tampers with
+/// the unsigned timestamp property silently bypass <see cref="SignatureTimestampImprintPolicy.RequireWhenPresent"/>.
+/// </summary>
 public class XadesUnsignedEmbeddedValuesTests
 {
     [Fact]
-    public void RoundTrip_certificate_and_revocation_der_matches_append_helpers()
+    public async Task HasEncapsulatedSignatureTimeStamp_true_for_valid_token()
     {
-        using var rsa = RSA.Create(2048);
-        var req = new CertificateRequest("CN=emb", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-        using var cert = req.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1));
-        var dfs = new[] { new DataFile(new MemoryStream("u"u8.ToArray()), "doc.txt", "text/plain") };
-        var sig = XadesBesSigner.Sign(dfs, cert, DateTimeOffset.Parse("2024-10-01T12:00:00Z"));
-
-        var ocsp = new byte[] { 0x30, 0x03, 0x01, 0x01, 0x02 };
-        var crl = new byte[] { 0x30, 0x03, 0x01, 0x01, 0x03 };
-        XadesBesSigner.AppendUnsignedCertificateValues(sig, new[] { cert });
-        XadesBesSigner.AppendUnsignedRevocationValues(sig, new[] { ocsp }, new[] { crl });
-
-        Assert.Single(sig.UnsignedEncapsulatedX509Der);
-        Assert.Equal(cert.RawData, sig.UnsignedEncapsulatedX509Der[0]);
-
-        Assert.Single(sig.UnsignedEncapsulatedOcspDer);
-        Assert.Equal(ocsp, sig.UnsignedEncapsulatedOcspDer[0]);
-
-        Assert.Single(sig.UnsignedEncapsulatedCrlDer);
-        Assert.Equal(crl, sig.UnsignedEncapsulatedCrlDer[0]);
+        using var signer = await BuildTimestampedSignatureAsync();
+        var doc = signer.Signature.GetSignatureOwnerDocument();
+        Assert.True(XadesUnsignedEmbeddedValues.HasEncapsulatedSignatureTimeStamp(doc));
     }
 
     [Fact]
-    public void ReadEncapsulatedX509Certificates_parses_reload_from_xml()
+    public async Task HasEncapsulatedSignatureTimeStamp_false_when_no_timestamp_at_all()
     {
-        using var rsa = RSA.Create(2048);
-        var req = new CertificateRequest("CN=reload", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-        using var cert = req.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1));
-        var sig = XadesBesSigner.Sign(
-            new[] { new DataFile(new MemoryStream("r"u8.ToArray()), "doc.txt", "text/plain") },
-            cert,
-            DateTimeOffset.Parse("2024-10-02T12:00:00Z"));
-        XadesBesSigner.AppendUnsignedCertificateValues(sig, new[] { cert });
+        var sig = BuildPlainBesSignature();
+        var doc = sig.GetSignatureOwnerDocument();
+        Assert.False(XadesUnsignedEmbeddedValues.HasEncapsulatedSignatureTimeStamp(doc));
+    }
+
+    [Fact]
+    public async Task HasEncapsulatedSignatureTimeStamp_true_when_element_present_but_base64_corrupted()
+    {
+        // Regression: previously the helper returned false when InnerText was non-Base64, treating the
+        // element as absent. A document trip through SignatureTrustPolicy.CryptographyAndTimestampImprint
+        // would then bypass imprint verification — exploitable because unsigned properties are not
+        // cryptographically protected. After the fix, presence is element-based and validation must fail.
+        using var signer = await BuildTimestampedSignatureAsync();
+        var doc = signer.Signature.GetSignatureOwnerDocument();
+        CorruptEncapsulatedTimestampBase64(doc);
+
+        Assert.True(XadesUnsignedEmbeddedValues.HasEncapsulatedSignatureTimeStamp(doc));
+    }
+
+    [Fact]
+    public async Task ReadEncapsulatedSignatureTimeStamps_returns_decoded_der_for_valid_token()
+    {
+        using var signer = await BuildTimestampedSignatureAsync();
+        var doc = signer.Signature.GetSignatureOwnerDocument();
+        var list = XadesUnsignedEmbeddedValues.ReadEncapsulatedSignatureTimeStamps(doc);
+        Assert.Single(list);
+        Assert.NotEmpty(list[0]);
+    }
+
+    [Fact]
+    public async Task ReadEncapsulatedSignatureTimeStamps_returns_empty_for_corrupted_base64()
+    {
+        // Companion to the Has* regression: the byte reader API still cannot return malformed entries; it
+        // exposes only decodable DER. Callers that need the "present-but-malformed" signal should consult
+        // HasEncapsulatedSignatureTimeStamp first.
+        using var signer = await BuildTimestampedSignatureAsync();
+        var doc = signer.Signature.GetSignatureOwnerDocument();
+        CorruptEncapsulatedTimestampBase64(doc);
+
+        var list = XadesUnsignedEmbeddedValues.ReadEncapsulatedSignatureTimeStamps(doc);
+        Assert.Empty(list);
+    }
+
+    [Fact]
+    public async Task EdocValidation_imprint_policy_now_fails_when_timestamp_base64_is_corrupted()
+    {
+        // Security regression: validator must surface the tampered timestamp under RequireWhenPresent.
+        using var signer = await BuildTimestampedSignatureAsync();
+        CorruptEncapsulatedTimestampBase64(signer.Signature.GetSignatureOwnerDocument());
+
+        var edoc = Edoc.CreateNew();
+        edoc.AddDataFile(new MemoryStream(signer.Payload.ToArray()), "doc.txt", "text/plain");
+        edoc.AddSignature(signer.Signature);
 
         using var ms = new MemoryStream();
-        sig.WriteTo(ms);
-        var doc = new XmlDocument { PreserveWhitespace = false };
-        doc.LoadXml(Encoding.UTF8.GetString(ms.ToArray()));
+        edoc.Save(ms);
+        ms.Position = 0;
 
-        var parsed = XadesUnsignedEmbeddedValues.ReadEncapsulatedX509Certificates(doc);
-        Assert.Single(parsed);
-        Assert.Equal(cert.RawData, parsed[0]);
-
-        var roundTrip = new XadesSignature(doc);
-        Assert.Equal(parsed[0], roundTrip.UnsignedEncapsulatedX509Der[0]);
+        var report = await EdocValidation.OpenAndValidateAsync(ms, SignatureTrustPolicy.CryptographyAndTimestampImprint);
+        Assert.False(report.AllSignaturesValid);
+        Assert.False(report.Signatures[0].Result.SignatureTimestampImprintValid);
+        Assert.Contains("Base64", report.Signatures[0].Result.Error ?? string.Empty, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public void Empty_document_returns_empty_lists()
+    public async Task HasEncapsulatedSignatureTimeStamp_does_not_match_archive_timestamp()
+    {
+        // XPath under //xades:SignatureTimeStamp must not match xades:ArchiveTimeStamp (XAdES-A) entries.
+        var doc = BuildSyntheticSignatureDocumentWithArchiveTimestampOnly();
+        Assert.False(XadesUnsignedEmbeddedValues.HasEncapsulatedSignatureTimeStamp(doc));
+    }
+
+    [Fact]
+    public async Task ReadEncapsulatedSignatureTimeStamps_does_not_include_archive_timestamp()
+    {
+        var doc = BuildSyntheticSignatureDocumentWithArchiveTimestampOnly();
+        var list = XadesUnsignedEmbeddedValues.ReadEncapsulatedSignatureTimeStamps(doc);
+        Assert.Empty(list);
+    }
+
+    [Fact]
+    public void ReadEncapsulatedX509Certificates_returns_empty_for_no_unsigned_certificates()
+    {
+        var sig = BuildPlainBesSignature();
+        var list = XadesUnsignedEmbeddedValues.ReadEncapsulatedX509Certificates(sig.GetSignatureOwnerDocument());
+        Assert.Empty(list);
+    }
+
+    [Fact]
+    public void Reader_null_arguments_throw()
+    {
+        Assert.Throws<ArgumentNullException>(() => XadesUnsignedEmbeddedValues.HasEncapsulatedSignatureTimeStamp(null!));
+        Assert.Throws<ArgumentNullException>(() => XadesUnsignedEmbeddedValues.ReadEncapsulatedSignatureTimeStamps(null!));
+        Assert.Throws<ArgumentNullException>(() => XadesUnsignedEmbeddedValues.ReadEncapsulatedX509Certificates(null!));
+        Assert.Throws<ArgumentNullException>(() => XadesUnsignedEmbeddedValues.ReadEncapsulatedPkcs7CertificateData(null!));
+        Assert.Throws<ArgumentNullException>(() => XadesUnsignedEmbeddedValues.ReadEncapsulatedOcspResponses(null!));
+        Assert.Throws<ArgumentNullException>(() => XadesUnsignedEmbeddedValues.ReadEncapsulatedCrls(null!));
+    }
+
+    private static void CorruptEncapsulatedTimestampBase64(XmlDocument doc)
+    {
+        var nsm = new XmlNamespaceManager(doc.NameTable);
+        nsm.AddNamespace("xades", XadesSignature.XadesNamespaceUrl);
+        var el = doc.SelectSingleNode("//xades:SignatureTimeStamp/xades:EncapsulatedTimeStamp", nsm) as XmlElement;
+        Assert.NotNull(el);
+        // Replace InnerText with sequence that cannot be Base64-decoded (contains characters outside the Base64 alphabet).
+        el!.InnerText = "@@@-NOT-BASE64-@@@";
+    }
+
+    private static XmlDocument BuildSyntheticSignatureDocumentWithArchiveTimestampOnly()
+    {
+        // Direct DOM build: minimal ds:Signature shell with QualifyingProperties holding only an ArchiveTimeStamp
+        // (not a SignatureTimeStamp). Avoids needing a full ASN.1 token; we just need to drive the XPath.
+        var xml = $$"""
+            <ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:xades="{{XadesSignature.XadesNamespaceUrl}}">
+              <ds:SignedInfo />
+              <ds:SignatureValue />
+              <ds:Object>
+                <xades:QualifyingProperties Target="#sig">
+                  <xades:UnsignedProperties>
+                    <xades:UnsignedSignatureProperties>
+                      <xades:ArchiveTimeStamp>
+                        <xades:EncapsulatedTimeStamp>AAECAw==</xades:EncapsulatedTimeStamp>
+                      </xades:ArchiveTimeStamp>
+                    </xades:UnsignedSignatureProperties>
+                  </xades:UnsignedProperties>
+                </xades:QualifyingProperties>
+              </ds:Object>
+            </ds:Signature>
+            """;
+        var doc = new XmlDocument { PreserveWhitespace = false };
+        doc.LoadXml(xml);
+        return doc;
+    }
+
+    private static XadesSignature BuildPlainBesSignature()
     {
         using var rsa = RSA.Create(2048);
-        var req = new CertificateRequest("CN=empty-emb", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        var req = new CertificateRequest("CN=embedded-values", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         using var cert = req.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1));
-        var sig = XadesBesSigner.Sign(
-            new[] { new DataFile(new MemoryStream("e"u8.ToArray()), "doc.txt", "text/plain") },
-            cert,
-            DateTimeOffset.Parse("2024-10-03T12:00:00Z"));
+        var payload = Encoding.UTF8.GetBytes("plain-bes");
+        var dfs = new[] { new DataFile(new MemoryStream(payload.ToArray()), "doc.txt", "text/plain") };
+        return XadesBesSigner.Sign(dfs, cert, DateTimeOffset.UtcNow);
+    }
 
-        Assert.Empty(sig.UnsignedEncapsulatedX509Der);
-        Assert.Empty(sig.UnsignedEncapsulatedOcspDer);
-        Assert.Empty(sig.UnsignedEncapsulatedCrlDer);
+    private static async Task<TimestampedSignerHandle> BuildTimestampedSignatureAsync()
+    {
+        var rsa = RSA.Create(2048);
+        var req = new CertificateRequest("CN=embedded-values-ts", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        var cert = req.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1));
+        var payload = Encoding.UTF8.GetBytes("ts-payload");
+        var dfs = new[] { new DataFile(new MemoryStream(payload.ToArray()), "doc.txt", "text/plain") };
+        var sig = await XadesBesSigner.SignWithTimestampAsync(
+            dfs,
+            cert,
+            DateTimeOffset.UtcNow,
+            new LocalSha256Rfc3161TimestampProvider());
+        return new TimestampedSignerHandle(sig, payload, rsa, cert);
+    }
+
+    private sealed class TimestampedSignerHandle : IDisposable
+    {
+        public TimestampedSignerHandle(XadesSignature signature, byte[] payload, RSA rsa, X509Certificate2 cert)
+        {
+            Signature = signature;
+            Payload = payload;
+            _rsa = rsa;
+            _cert = cert;
+        }
+
+        public XadesSignature Signature { get; }
+
+        public byte[] Payload { get; }
+
+        private readonly RSA _rsa;
+        private readonly X509Certificate2 _cert;
+
+        public void Dispose()
+        {
+            _cert.Dispose();
+            _rsa.Dispose();
+        }
     }
 }

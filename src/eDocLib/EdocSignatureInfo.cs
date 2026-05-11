@@ -58,28 +58,28 @@ public sealed class EdocSignatureInfo
     /// <summary>DER-encoded CRLs from unsigned <c>RevocationValues</c>.</summary>
     public IReadOnlyList<byte[]> UnsignedCrlsDer => _signature.UnsignedEncapsulatedCrlDer;
 
-    /// <summary>RFC 3161 tokens embedded under <c>SignatureTimeStamp</c> / <c>EncapsulatedTimeStamp</c>.</summary>
+    /// <summary>RFC 3161 tokens embedded under <c>xades:SignatureTimeStamp</c> / <c>EncapsulatedTimeStamp</c> (signature-time stamps only).</summary>
     public IReadOnlyList<byte[]> EncapsulatedTimeStampDer =>
-        XadesUnsignedEmbeddedValues.ReadEncapsulatedTimeStamps(_signature.GetSignatureOwnerDocument());
+        XadesUnsignedEmbeddedValues.ReadEncapsulatedSignatureTimeStamps(_signature.GetSignatureOwnerDocument());
 
-    /// <summary>Coarse classification of embedded unsigned material (BES / LT / archive).</summary>
+    /// <summary>Coarse classification of embedded unsigned material (informative; not a strict ETSI level).</summary>
     public EdocMaterialProfile MaterialProfile => ClassifyMaterial(_signature);
 
     /// <summary>Classifies material.</summary>
     private static EdocMaterialProfile ClassifyMaterial(XadesSignature xs)
     {
-        var doc = xs.GetSignatureOwnerDocument();
-        if (doc.GetElementsByTagName("ArchiveTimeStamp", "*").Count > 0)
-        {
-            return EdocMaterialProfile.Archived;
-        }
-
         if (xs.UnsignedEncapsulatedX509Der.Count > 0
             || xs.UnsignedEncapsulatedPkcs7Der.Count > 0
             || xs.UnsignedEncapsulatedOcspDer.Count > 0
             || xs.UnsignedEncapsulatedCrlDer.Count > 0)
         {
             return EdocMaterialProfile.LongTermMaterial;
+        }
+
+        var doc = xs.GetSignatureOwnerDocument();
+        if (doc.GetElementsByTagName("ArchiveTimeStamp", "*").Count > 0)
+        {
+            return EdocMaterialProfile.Unknown;
         }
 
         return EdocMaterialProfile.Basic;

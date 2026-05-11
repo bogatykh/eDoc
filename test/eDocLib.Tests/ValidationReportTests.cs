@@ -55,6 +55,8 @@ public class ValidationReportTests
             report.Root.Children,
             c => c.Type == ValidationType.Structure && c.Status == ValidationStatus.Passed);
         Assert.Equal(ValidationType.Signature, s.Tree.Type);
+        var sigFormatNode = Assert.Single(s.Tree.Children, n => n.Type == ValidationType.SignatureType);
+        Assert.Contains("ASiC-E", sigFormatNode.Description ?? "", StringComparison.Ordinal);
         Assert.Contains(
             s.Tree.Children,
             n => n.Type == ValidationType.SignatureEdocDataObjectReferences && n.Status == ValidationStatus.Passed);

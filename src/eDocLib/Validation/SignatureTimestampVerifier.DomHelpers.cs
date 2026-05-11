@@ -13,10 +13,19 @@ internal static partial class SignatureTimestampVerifier
         tokenDer = [];
         error = null;
 
+        // Two distinct error paths: element missing entirely vs. element present but base64-malformed.
+        // The latter must not silently fall through; tampered unsigned properties whose base64 was corrupted
+        // would otherwise look identical to a properly absent timestamp and skip imprint verification.
+        if (!XadesUnsignedEmbeddedValues.HasEncapsulatedSignatureTimeStamp(signatureDocument))
+        {
+            error = "No xades:SignatureTimeStamp/xades:EncapsulatedTimeStamp element found.";
+            return false;
+        }
+
         var sigTs = XadesUnsignedEmbeddedValues.ReadEncapsulatedSignatureTimeStamps(signatureDocument);
         if (sigTs.Count == 0)
         {
-            error = "No xades:SignatureTimeStamp/xades:EncapsulatedTimeStamp element found.";
+            error = "xades:EncapsulatedTimeStamp content is not valid Base64.";
             return false;
         }
 

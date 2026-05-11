@@ -90,11 +90,6 @@ internal static partial class SignatureValidator
         }
 
         var owner = signature.GetSignatureOwnerDocument();
-        var archDerList = XadesUnsignedEmbeddedValues.ReadEncapsulatedArchiveTimeStamps(owner);
-        var archiveTimeStampCount = archDerList.Count;
-        bool? archiveTimeStampsCmsValid = null;
-        bool? archiveTimeStampsChainValid = null;
-        bool? archiveTimeStampImprintsValid = null;
         var hasTs = SignatureTimestampVerifier.ContainsEmbeddedSignatureTimestamp(owner);
 
         bool? imprintValid = null;
@@ -122,6 +117,10 @@ internal static partial class SignatureValidator
         bool? tsaCmsValid = null;
         bool? tsaChainValid = null;
         IReadOnlyList<CertificateChainDiagnostic>? tsaSignerChainDiag = null;
+        bool? tsaListedInTsl = null;
+        IReadOnlyList<string>? tsaTslServiceTypes = null;
+        string? tsaTslServiceStatus = null;
+        TslQualificationIndicators? tsaTslIndicators = null;
 
         SignatureValidationResult StampSlice() =>
             new()
@@ -130,18 +129,26 @@ internal static partial class SignatureValidator
                 TsaSignerCmsValid = tsaCmsValid,
                 TsaSignerChainValid = tsaChainValid,
                 TsaSignerCertificateChain = tsaSignerChainDiag,
-                ArchiveTimeStampCount = archiveTimeStampCount,
-                ArchiveTimeStampsCmsValid = archiveTimeStampsCmsValid,
-                ArchiveTimeStampsChainValid = archiveTimeStampsChainValid,
-                ArchiveTimeStampImprintsValid = archiveTimeStampImprintsValid,
+                TimestampAuthorityListedInTrustedList = tsaListedInTsl,
+                TimestampAuthorityTrustedListServiceTypeIdentifiers = tsaTslServiceTypes,
+                TimestampAuthorityTrustedListServiceStatus = tsaTslServiceStatus,
+                TimestampAuthorityTrustedListQualificationIndicators = tsaTslIndicators,
                 SignerClaimedRolesConstraintOk = policy.HasSignerClaimedRoleConstraints ? true : null,
             };
 
-        var wantTsa = policy.ValidateTsaSigner || policy.ValidateTsaSignerChain;
+        var wantTsa = policy.RequiresTsaTokenInspection;
         if (wantTsa && hasTs)
         {
             var tsaRes = await SignatureTimestampVerifier.TryVerifyTsaTokenTrustAsync(owner, policy, cancellationToken)
                 .ConfigureAwait(false);
+            if (tsaRes.Tsl is { } tslSnap)
+            {
+                tsaListedInTsl = tslSnap.Listed;
+                tsaTslServiceTypes = tslSnap.ServiceTypeIdentifiers;
+                tsaTslServiceStatus = tslSnap.ServiceStatusUri;
+                tsaTslIndicators = tslSnap.Indicators;
+            }
+
             if (!tsaRes.Ok)
             {
                 return StampSlice() with
@@ -160,55 +167,6 @@ internal static partial class SignatureValidator
             tsaCmsValid = tsaRes.CmsValid;
             tsaChainValid = tsaRes.ChainValid;
             tsaSignerChainDiag = tsaRes.CertificateChain;
-        }
-
-        if (policy.ValidateArchiveTimeStampCms && archDerList.Count > 0)
-        {
-            foreach (var der in archDerList)
-            {
-                var archiveRes = await SignatureTimestampVerifier.TryVerifyTimeStampTokenDerAsync(
-                        der,
-                        policy,
-                        verifyCms: true,
-                        verifyChain: policy.ValidateArchiveTimeStampChain,
-                        cancellationToken)
-                    .ConfigureAwait(false);
-                if (!archiveRes.Ok)
-                {
-                    return StampSlice() with
-                    {
-                        Success = false,
-                        Error = archiveRes.Error,
-                        ReferencesAndSignatureValid = true,
-                        CertificateChainValid = null,
-                        ArchiveTimeStampsCmsValid = archiveRes.CmsValid,
-                        ArchiveTimeStampsChainValid = archiveRes.ChainValid,
-                        Revocation = Rev(false),
-                    };
-                }
-            }
-
-            archiveTimeStampsCmsValid = true;
-            archiveTimeStampsChainValid = policy.ValidateArchiveTimeStampChain ? true : null;
-        }
-
-        if (policy.ArchiveTimestampImprintPolicy == ArchiveTimestampImprintPolicy.RequireWhenPresent
-            && archDerList.Count > 0)
-        {
-            if (!ArchiveTimestampImprintVerifier.TryVerifyAll(owner, archDerList, out var imprintErr))
-            {
-                return StampSlice() with
-                {
-                    Success = false,
-                    Error = imprintErr,
-                    ReferencesAndSignatureValid = true,
-                    CertificateChainValid = null,
-                    ArchiveTimeStampImprintsValid = false,
-                    Revocation = Rev(false),
-                };
-            }
-
-            archiveTimeStampImprintsValid = true;
         }
 
         var signingCert = signature.SigningCertificate as X509Certificate2;

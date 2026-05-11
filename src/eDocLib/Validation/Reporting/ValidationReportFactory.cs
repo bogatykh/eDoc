@@ -19,10 +19,11 @@ internal static partial class ValidationReportFactory
 
         var sigReports = new List<SignatureValidationReport>(readResult.Signatures.Count);
         var sigNodes = new List<ValidationResultNode>(readResult.Signatures.Count);
+        var reportLocalizer = reportOptions?.ReportLocalizer ?? new DefaultValidationReportLocalizer();
         foreach (var sv in readResult.Signatures)
         {
             var xs = sv.Signature as XadesSignature;
-            var report = CreateForSignature(sv.Ordinal, xs, sv.Result, policy, reportOptions);
+            var report = CreateForSignature(sv.Ordinal, xs, sv.Result, policy, reportOptions, reportLocalizer);
             sigReports.Add(report);
             sigNodes.Add(report.Tree);
         }
@@ -40,10 +41,6 @@ internal static partial class ValidationReportFactory
                     ValidationType.StructureEdocDataObjectCount,
                     ValidationStatus.Passed,
                     description: readResult.Edoc.DataFiles.Count.ToString()),
-                ValidationResultNode.Leaf(
-                    ValidationType.StructurePdfPageCount,
-                    ValidationStatus.Unchecked,
-                    description: "Not applicable (ASiC-E / XML)."),
             });
 
         var rootChildren = new List<ValidationResultNode>(1 + readResult.Signatures.Count)
@@ -66,10 +63,13 @@ internal static partial class ValidationReportFactory
         XadesSignature? signature,
         SignatureValidationResult result,
         SignatureTrustPolicy policy,
-        ValidationReportOptions? reportOptions = null)
+        ValidationReportOptions? reportOptions = null,
+        IValidationReportLocalizer? reportLocalizer = null)
     {
         ArgumentNullException.ThrowIfNull(result);
         ArgumentNullException.ThrowIfNull(policy);
+
+        var loc = reportLocalizer ?? reportOptions?.ReportLocalizer ?? new DefaultValidationReportLocalizer();
 
         var vType = ValidationReportQualifications.GetValidationSignatureType(signature);
         var profile = ValidationReportQualifications.EstimateSignatureProfile(signature);
@@ -78,7 +78,7 @@ internal static partial class ValidationReportFactory
         var certQ = ValidationReportQualifications.EstimateSignerCertificateQualification(result, signingCert);
         var tsQ = ValidationReportQualifications.EstimateTimestampQualification(policy, result);
 
-        var tree = BuildSignatureSubtree(signature, result, policy, vType, profile, reportOptions);
+        var tree = BuildSignatureSubtree(signature, result, policy, vType, profile, reportOptions, loc);
         var paths = SignatureCertificatePathSummary.FromSignatureValidationResult(result);
         return new SignatureValidationReport(
             ordinal,
@@ -109,7 +109,8 @@ internal static partial class ValidationReportFactory
         SignatureTrustPolicy policy,
         ValidationSignatureType validationSignatureType,
         SignatureProfile profile,
-        ValidationReportOptions? reportOptions)
+        ValidationReportOptions? reportOptions,
+        IValidationReportLocalizer reportLocalizer)
     {
         var cryptoOk = result.ReferencesAndSignatureValid;
         var id = xs?.Id;
@@ -118,12 +119,12 @@ internal static partial class ValidationReportFactory
             ValidationType.SignatureType,
             ValidationStatus.Passed,
             id: id,
-            description: validationSignatureType.ToString());
+            description: reportLocalizer.DescribeValidationSignatureType(validationSignatureType));
 
         var profileNode = ValidationResultNode.Leaf(
             ValidationType.SignatureProfile,
             ValidationStatus.Passed,
-            description: profile.ToString());
+            description: reportLocalizer.DescribeSignatureProfile(profile));
 
         var methodUri = xs?.SignatureMethod ?? "(unknown)";
         var cryptoSt = CryptoLayerStatus(cryptoOk);
@@ -150,16 +151,6 @@ internal static partial class ValidationReportFactory
             cryptoSt,
             reasons: cryptoReasons);
 
-        var pdfAdobe = ValidationResultNode.Leaf(
-            ValidationType.SignaturePdfAdobePkcs7DetachedSignedAttributes,
-            ValidationStatus.Unchecked,
-            description: "Not applicable (XML eDoc).");
-
-        var pdfEtsi = ValidationResultNode.Leaf(
-            ValidationType.SignaturePdfEtsiCadesDetachedSignedAttributes,
-            ValidationStatus.Unchecked,
-            description: "Not applicable (XML eDoc).");
-
         var signerRolesNode = BuildSignerRolesBranch(xs, result, policy);
         var productionPlaceNode = BuildSignatureProductionPlaceBranch(xs);
 
@@ -167,9 +158,7 @@ internal static partial class ValidationReportFactory
         var chainNode = BuildCertificateChain(result, policy, referenceNow);
         var revocationNode = BuildRevocationBranch(result, policy);
         var timestampNode = BuildTimestampBranch(signature: xs, result, policy, referenceNow);
-        var archiveTsNode = TryBuildArchiveTimestampBranch(signature: xs, result, policy);
-
-        var children = new List<ValidationResultNode>(14)
+        var children = new List<ValidationResultNode>(11)
         {
             typeNode,
             profileNode,
@@ -177,18 +166,12 @@ internal static partial class ValidationReportFactory
             dataRefs,
             sigValue,
             signingCertRefs,
-            pdfAdobe,
-            pdfEtsi,
             signerRolesNode,
             productionPlaceNode,
             chainNode,
             revocationNode,
             timestampNode,
         };
-        if (archiveTsNode is not null)
-        {
-            children.Add(archiveTsNode);
-        }
 
         var sigStatus = result.GetIndication() switch
         {

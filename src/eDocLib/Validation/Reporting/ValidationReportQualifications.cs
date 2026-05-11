@@ -19,11 +19,6 @@ internal static class ValidationReportQualifications
             return SignatureProfile.UnknownSignature;
         }
 
-        if (signature.UnsignedEncapsulatedArchiveTimeStampDer.Count > 0)
-        {
-            return SignatureProfile.ArchivedSignature;
-        }
-
         var hasLtMaterial = signature.UnsignedEncapsulatedOcspDer.Count > 0
             || signature.UnsignedEncapsulatedCrlDer.Count > 0
             || signature.UnsignedEncapsulatedX509Der.Count > 0
@@ -132,7 +127,7 @@ internal static class ValidationReportQualifications
         {
             if (f.QcCompliance && f.Esign && f.Eseal)
             {
-                return CertificateQualification.QcUnknown;
+                return f.QcSscd ? CertificateQualification.QcQscdUnknown : CertificateQualification.QcUnknown;
             }
 
             if (f.QcCompliance && f.Esign && !f.Eseal)
@@ -159,29 +154,41 @@ internal static class ValidationReportQualifications
         return CertificateQualification.Unknown;
     }
 
-    /// <summary>Estimates timestamp qualification.</summary>
+    /// <summary>Estimates timestamp qualification for reporting.</summary>
+    /// <remarks>
+    /// Returns <see cref="TimestampQualification.QTsa"/> when the validation run succeeded, a signature-level
+    /// timestamp check succeeded (imprint or CMS per policy), and the matched TSA TSL service is recognised as a
+    /// <em>qualified time-stamping service</em> (ETSI <c>TSA/QTST</c>) with a granted-equivalent status
+    /// (see <see cref="TslQualificationIndicators.SuggestsQualifiedTimestampService"/> /
+    /// <see cref="TslQualificationIndicators.ServiceStatusIsGranted"/>). Otherwise returns
+    /// <see cref="TimestampQualification.Tsa"/> when CMS or imprint verification succeeded but no qualified-TSA
+    /// trusted-list evidence is available.
+    /// </remarks>
     public static TimestampQualification EstimateTimestampQualification(SignatureTrustPolicy policy, SignatureValidationResult result)
     {
-        var wantSig = policy.ValidateTsaSigner || policy.ValidateTsaSignerChain
+        // Aligned with SignatureValidator: any TSA-related flag (CMS, PKIX, or any TSA-TSL gate) forces token inspection.
+        // Bare imprint policy alone is still recognised because the imprint check itself is signature-level timestamp evidence.
+        var wantSig = policy.RequiresTsaTokenInspection
             || policy.TimestampImprintPolicy == SignatureTimestampImprintPolicy.RequireWhenPresent;
-        var wantArch = policy.ValidateArchiveTimeStampCms || policy.ValidateArchiveTimeStampChain
-            || policy.ArchiveTimestampImprintPolicy == ArchiveTimestampImprintPolicy.RequireWhenPresent;
-        if (!wantSig && !wantArch)
+        if (!wantSig)
         {
             return TimestampQualification.Unknown;
         }
 
-        if (result.TsaSignerCmsValid == true || result.SignatureTimestampImprintValid == true)
+        if (result.TsaSignerCmsValid != true && result.SignatureTimestampImprintValid != true)
         {
-            return TimestampQualification.Tsa;
+            return TimestampQualification.Unknown;
         }
 
-        if (result.ArchiveTimeStampCount > 0
-            && (result.ArchiveTimeStampsCmsValid == true || result.ArchiveTimeStampImprintsValid == true))
+        if (result.Success
+            && result.TimestampAuthorityListedInTrustedList == true
+            && result.TimestampAuthorityTrustedListQualificationIndicators is { } tsaInd
+            && tsaInd.SuggestsQualifiedTimestampService
+            && tsaInd.ServiceStatusIsGranted == true)
         {
-            return TimestampQualification.Tsa;
+            return TimestampQualification.QTsa;
         }
 
-        return TimestampQualification.Unknown;
+        return TimestampQualification.Tsa;
     }
 }

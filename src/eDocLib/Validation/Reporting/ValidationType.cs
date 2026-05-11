@@ -12,9 +12,6 @@ public enum ValidationType
     /// <summary>Data object count check for an eDoc container.</summary>
     StructureEdocDataObjectCount,
 
-    /// <summary>PDF page count check.</summary>
-    StructurePdfPageCount,
-
     /// <summary>Signature count check.</summary>
     StructureSignatureCount,
 
@@ -29,12 +26,6 @@ public enum ValidationType
 
     /// <summary>Signature method check.</summary>
     SignatureMethod,
-
-    /// <summary>Signed attributes check for a PDF Adobe PKCS#7 detached signature.</summary>
-    SignaturePdfAdobePkcs7DetachedSignedAttributes,
-
-    /// <summary>Signed attributes check for a PDF ETSI CAdES detached signature.</summary>
-    SignaturePdfEtsiCadesDetachedSignedAttributes,
 
     /// <summary>XAdES <c>SignatureProductionPlace</c> (informational).</summary>
     SignatureProductionPlace,
@@ -66,8 +57,6 @@ public enum ValidationType
     /// <summary>PKIX chain validation branch for the signing certificate.</summary>
     SignatureSigningCertificateChain,
 
-    /// <summary>Legacy combined caption; prefer <see cref="SignatureRevocation"/> branch for new trees.</summary>
-    SignatureSigningCertificateStatus,
     /// <summary>Revocation summary branch (PKIX mode, embedded unsigned material, application online fetch).</summary>
     SignatureRevocation,
     /// <summary>Effective <see cref="System.Security.Cryptography.X509Certificates.X509RevocationMode"/> used when the signing PKIX chain was built.</summary>
@@ -92,14 +81,12 @@ public enum ValidationType
 
     /// <summary>Timestamp token CMS signature check.</summary>
     SignatureTimestampSignature,
-    /// <summary>Archive time-stamp subtree (CMS + optional TSA chain).</summary>
-    SignatureArchiveTimeStamp,
-    /// <summary>RFC 3161 archive token CMS verification.</summary>
-    SignatureArchiveTimeStampSignature,
-    /// <summary>PKIX validation for archive TSA certificate when enabled.</summary>
-    SignatureArchiveTimeStampCertificate,
-    /// <summary>Archive RFC 3161 message imprint vs default signature XML digest input.</summary>
-    SignatureArchiveTimeStampImprint,
+
+    /// <summary>
+    /// Trusted-list qualification check for the TSA certificate (e.g. ETSI <c>TSA/QTST</c> + granted status).
+    /// Present when <see cref="SignatureTrustPolicy.TrustedListServiceIndex"/> is configured and a TSA lookup ran.
+    /// </summary>
+    SignatureTimestampQualification,
 
     /// <summary>Signature type classification.</summary>
     SignatureType,

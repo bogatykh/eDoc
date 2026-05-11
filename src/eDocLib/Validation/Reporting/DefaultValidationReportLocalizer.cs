@@ -40,14 +40,11 @@ internal sealed class DefaultValidationReportLocalizer : IValidationReportLocali
             ValidationType.Root => "Root",
             ValidationType.Structure => "Structure",
             ValidationType.StructureEdocDataObjectCount => "Data object count",
-            ValidationType.StructurePdfPageCount => "PDF page count",
             ValidationType.StructureSignatureCount => "Signature count",
             ValidationType.Signature => "Signature",
             ValidationType.SignatureEdocDataObjectReferences => "Data object references (digest)",
             ValidationType.SignatureEdocSigningCertificateReferences => "Signing certificate references (XAdES)",
             ValidationType.SignatureMethod => "Signature method",
-            ValidationType.SignaturePdfAdobePkcs7DetachedSignedAttributes => "PDF Adobe PKCS#7 signed attributes",
-            ValidationType.SignaturePdfEtsiCadesDetachedSignedAttributes => "PDF ETSI CAdES signed attributes",
             ValidationType.SignatureProductionPlace => "Signature production place",
             ValidationType.SignatureProfile => "Signature profile",
             ValidationType.SignatureSignerClaimedRoles => "Signer claimed roles",
@@ -58,7 +55,6 @@ internal sealed class DefaultValidationReportLocalizer : IValidationReportLocali
             ValidationType.SignatureSigningCertificateNotAfter => "Not after (UTC)",
             ValidationType.SignatureSigningCertificateChain => "Signing certificate chain",
             ValidationType.SignatureSigningCertificatePkixStatuses => "PKIX chain element status",
-            ValidationType.SignatureSigningCertificateStatus => "Certificate / revocation status",
             ValidationType.SignatureRevocation => "Revocation",
             ValidationType.SignatureRevocationPkixChainMode => "PKIX revocation (chain build)",
             ValidationType.SignatureRevocationEmbeddedUnsigned => "Embedded RevocationValues",
@@ -69,10 +65,7 @@ internal sealed class DefaultValidationReportLocalizer : IValidationReportLocali
             ValidationType.SignatureTimestampCertificate => "Timestamp certificate (TSA chain)",
             ValidationType.SignatureTimestampCertificateChain => "TSA certificate chain",
             ValidationType.SignatureTimestampSignature => "Timestamp token (CMS)",
-            ValidationType.SignatureArchiveTimeStamp => "Archive time-stamps (XAdES-A)",
-            ValidationType.SignatureArchiveTimeStampSignature => "Archive time-stamp token (CMS)",
-            ValidationType.SignatureArchiveTimeStampCertificate => "Archive TSA certificate (PKIX)",
-            ValidationType.SignatureArchiveTimeStampImprint => "Archive time-stamp imprint (digest input)",
+            ValidationType.SignatureTimestampQualification => "Timestamp qualification (TSL)",
             ValidationType.SignatureType => "Signature type",
             ValidationType.SignatureValue => "Signature value",
             _ => type.ToString(),
@@ -84,8 +77,6 @@ internal sealed class DefaultValidationReportLocalizer : IValidationReportLocali
         {
             SignatureProfile.BasicSignature => "BASIC (B-BES style)",
             SignatureProfile.QualifiedSignature => "QUALIFIED (LT-style material)",
-            SignatureProfile.ArchivedSignature => "ARCHIVED (LTA)",
-            SignatureProfile.ProprietarySignature => "Proprietary",
             SignatureProfile.UnknownSignature => "Unknown",
             _ => profile.ToString(),
         };
@@ -103,8 +94,21 @@ internal sealed class DefaultValidationReportLocalizer : IValidationReportLocali
         };
 
     /// <summary>Describes certificate qualification.</summary>
+    /// <remarks>Strings match embedded RESX keys (<c>CertificateQualification_*</c>) and <see cref="CertificateQualification"/> names.</remarks>
     public string DescribeCertificateQualification(CertificateQualification q) =>
-        q.ToString();
+        q switch
+        {
+            CertificateQualification.ESig => nameof(CertificateQualification.ESig),
+            CertificateQualification.ESeal => nameof(CertificateQualification.ESeal),
+            CertificateQualification.QcESig => nameof(CertificateQualification.QcESig),
+            CertificateQualification.QcESeal => nameof(CertificateQualification.QcESeal),
+            CertificateQualification.QcQscdESig => nameof(CertificateQualification.QcQscdESig),
+            CertificateQualification.QcQscdESeal => nameof(CertificateQualification.QcQscdESeal),
+            CertificateQualification.QcQscdUnknown => nameof(CertificateQualification.QcQscdUnknown),
+            CertificateQualification.QcUnknown => nameof(CertificateQualification.QcUnknown),
+            CertificateQualification.Unknown => nameof(CertificateQualification.Unknown),
+            _ => q.ToString(),
+        };
 
     /// <summary>Describes timestamp qualification.</summary>
     public string DescribeTimestampQualification(TimestampQualification q) =>
@@ -120,10 +124,7 @@ internal sealed class DefaultValidationReportLocalizer : IValidationReportLocali
     public string DescribeValidationSignatureType(ValidationSignatureType type) =>
         type switch
         {
-            ValidationSignatureType.EdocV1 => "EDOC v1",
             ValidationSignatureType.EdocV2 => "EDOC v2 (ASiC-E / XML)",
-            ValidationSignatureType.PdfAdobePkcs7Detached => "PDF Adobe PKCS#7",
-            ValidationSignatureType.PdfEtsiCadesDetached => "PDF ETSI CAdES",
             ValidationSignatureType.UnknownType => "Unknown",
             _ => type.ToString(),
         };

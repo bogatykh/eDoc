@@ -42,9 +42,6 @@
   <data name="ValidationType_StructureEdocDataObjectCount" xml:space="preserve">
     <value>Data object count</value>
   </data>
-  <data name="ValidationType_StructurePdfPageCount" xml:space="preserve">
-    <value>PDF page count</value>
-  </data>
   <data name="ValidationType_StructureSignatureCount" xml:space="preserve">
     <value>Signature count</value>
   </data>
@@ -59,12 +56,6 @@
   </data>
   <data name="ValidationType_SignatureMethod" xml:space="preserve">
     <value>Signature method</value>
-  </data>
-  <data name="ValidationType_SignaturePdfAdobePkcs7DetachedSignedAttributes" xml:space="preserve">
-    <value>PDF Adobe PKCS#7 signed attributes</value>
-  </data>
-  <data name="ValidationType_SignaturePdfEtsiCadesDetachedSignedAttributes" xml:space="preserve">
-    <value>PDF ETSI CAdES signed attributes</value>
   </data>
   <data name="ValidationType_SignatureProductionPlace" xml:space="preserve">
     <value>Signature production place</value>
@@ -96,9 +87,6 @@
   <data name="ValidationType_SignatureSigningCertificatePkixStatuses" xml:space="preserve">
     <value>PKIX chain element status</value>
   </data>
-  <data name="ValidationType_SignatureSigningCertificateStatus" xml:space="preserve">
-    <value>Certificate / revocation status</value>
-  </data>
   <data name="ValidationType_SignatureRevocation" xml:space="preserve">
     <value>Revocation</value>
   </data>
@@ -129,17 +117,8 @@
   <data name="ValidationType_SignatureTimestampSignature" xml:space="preserve">
     <value>Timestamp token (CMS)</value>
   </data>
-  <data name="ValidationType_SignatureArchiveTimeStamp" xml:space="preserve">
-    <value>Archive time-stamps (XAdES-A)</value>
-  </data>
-  <data name="ValidationType_SignatureArchiveTimeStampSignature" xml:space="preserve">
-    <value>Archive time-stamp token (CMS)</value>
-  </data>
-  <data name="ValidationType_SignatureArchiveTimeStampCertificate" xml:space="preserve">
-    <value>Archive TSA certificate (PKIX)</value>
-  </data>
-  <data name="ValidationType_SignatureArchiveTimeStampImprint" xml:space="preserve">
-    <value>Archive time-stamp imprint (digest input)</value>
+  <data name="ValidationType_SignatureTimestampQualification" xml:space="preserve">
+    <value>Timestamp qualification (TSL)</value>
   </data>
   <data name="ValidationType_SignatureType" xml:space="preserve">
     <value>Signature type</value>
@@ -152,12 +131,6 @@
   </data>
   <data name="SignatureProfile_QualifiedSignature" xml:space="preserve">
     <value>QUALIFIED (LT-style material)</value>
-  </data>
-  <data name="SignatureProfile_ArchivedSignature" xml:space="preserve">
-    <value>ARCHIVED (LTA)</value>
-  </data>
-  <data name="SignatureProfile_ProprietarySignature" xml:space="preserve">
-    <value>Proprietary</value>
   </data>
   <data name="SignatureProfile_UnknownSignature" xml:space="preserve">
     <value>Unknown</value>
@@ -213,17 +186,8 @@
   <data name="TimestampQualification_Unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
-  <data name="ValidationSignatureType_EdocV1" xml:space="preserve">
-    <value>EDOC v1</value>
-  </data>
   <data name="ValidationSignatureType_EdocV2" xml:space="preserve">
     <value>EDOC v2 (ASiC-E / XML)</value>
-  </data>
-  <data name="ValidationSignatureType_PdfAdobePkcs7Detached" xml:space="preserve">
-    <value>PDF Adobe PKCS#7</value>
-  </data>
-  <data name="ValidationSignatureType_PdfEtsiCadesDetached" xml:space="preserve">
-    <value>PDF ETSI CAdES</value>
   </data>
   <data name="ValidationSignatureType_UnknownType" xml:space="preserve">
     <value>Unknown</value>

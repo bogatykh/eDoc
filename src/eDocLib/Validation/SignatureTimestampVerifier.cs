@@ -7,8 +7,7 @@ using eDocLib.Asic.Xades;
 namespace eDocLib.Validation;
 
 /// <summary>
-/// Checks RFC 3161 tokens under XAdES-T <c>xades:SignatureTimeStamp</c> (imprint vs <c>SignatureValue</c>, optional CMS / PKIX)
-/// and archive tokens under <c>xades:ArchiveTimeStamp</c> via <see cref="TryVerifyTimeStampTokenDerAsync"/>.
+/// Checks RFC 3161 tokens under XAdES-T <c>xades:SignatureTimeStamp</c> (imprint vs <c>SignatureValue</c>, optional CMS / PKIX).
 /// </summary>
 internal static partial class SignatureTimestampVerifier
 {
@@ -57,9 +56,17 @@ internal static partial class SignatureTimestampVerifier
     }
 
     /// <summary>
-    /// When <see cref="SignatureTrustPolicy.ValidateTsaSigner"/> or <see cref="SignatureTrustPolicy.ValidateTsaSignerChain"/> is set,
-    /// validates the CMS time-stamp token using BouncyCastle (and optionally builds a .NET PKIX chain for the TSA certificate).
+    /// When the policy demands TSA token inspection (CMS verification, PKIX chain build, or any TSA trusted-list gate),
+    /// validates the CMS time-stamp token using BouncyCastle, optionally builds a .NET PKIX chain for the TSA certificate,
+    /// and applies the configured trusted-list policy gates. Returns success without inspection when no policy field
+    /// requires it.
     /// </summary>
+    /// <remarks>
+    /// Setting any of <see cref="SignatureTrustPolicy.RequireTimestampAuthorityCertificateListedInTrustedList"/>,
+    /// <see cref="SignatureTrustPolicy.RequireTimestampAuthorityServiceStatusGranted"/>, or
+    /// <see cref="SignatureTrustPolicy.RequireQualifiedTimestampServiceType"/> implicitly engages CMS verification; the
+    /// TSL gates cannot be enforced safely on a token whose CMS signer was never validated.
+    /// </remarks>
     public static Task<TimeStampTokenDerVerifyResult> TryVerifyTsaTokenTrustAsync(
         XmlDocument signatureDocument,
         SignatureTrustPolicy policy,
@@ -68,8 +75,7 @@ internal static partial class SignatureTimestampVerifier
         ArgumentNullException.ThrowIfNull(signatureDocument);
         ArgumentNullException.ThrowIfNull(policy);
 
-        var wantCms = policy.ValidateTsaSigner || policy.ValidateTsaSignerChain;
-        if (!wantCms)
+        if (!policy.RequiresTsaTokenInspection)
         {
             return Task.FromResult(TimeStampTokenDerVerifyResult.Success(null, null, null));
         }

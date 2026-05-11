@@ -10,6 +10,4 @@ public enum EdocMaterialProfile
     Basic = 1,
     /// <summary>Embedded certificate and/or revocation material (XAdES-XL-style unsigned properties).</summary>
     LongTermMaterial = 2,
-    /// <summary>Archive timestamp or related long-archive constructs detected in the XML.</summary>
-    Archived = 3,
 }

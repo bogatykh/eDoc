@@ -11,6 +11,28 @@ internal static class TslQualificationMapper
     /// <summary>ETSI: qualified certificate for electronic seal.</summary>
     public const string ServiceTypeQCertESeal = "http://uri.etsi.org/TrstSvc/Svctype/QESeal/QCertESeal";
 
+    /// <summary>ETSI TS 119 612 Annex D: generic time-stamping service authority (non-qualified).</summary>
+    public const string ServiceTypeTsa = "http://uri.etsi.org/TrstSvc/Svctype/TSA";
+
+    /// <summary>
+    /// ETSI TS 119 612 Annex D: time-stamping service authority issuing <b>qualified electronic time-stamps</b>
+    /// per eIDAS Article 42 (ETSI EN 319 421 / 319 422 conformant). This is the URI marking a TSA as a
+    /// qualified TSP for the trust-service type "time-stamp".
+    /// </summary>
+    public const string ServiceTypeTsaQTST = "http://uri.etsi.org/TrstSvc/Svctype/TSA/QTST";
+
+    /// <summary>
+    /// ETSI TS 119 612 Annex D: time-stamping service used for qualified certificates (legacy / pre-eIDAS marker).
+    /// Recognised in some national TSLs alongside <see cref="ServiceTypeTsaQTST"/>.
+    /// </summary>
+    public const string ServiceTypeTsaTssQC = "http://uri.etsi.org/TrstSvc/Svctype/TSA/TSS-QC";
+
+    /// <summary>
+    /// ETSI TS 119 612 Annex D: time-stamping service used for AdES with QC and for QES (legacy / pre-eIDAS marker).
+    /// Recognised in some national TSLs alongside <see cref="ServiceTypeTsaQTST"/>.
+    /// </summary>
+    public const string ServiceTypeTsaTssAdESQCandQES = "http://uri.etsi.org/TrstSvc/Svctype/TSA/TSS-AdESQCandQES";
+
     /// <summary>ETSI TSL: service active at national / LOTL level.</summary>
     public const string ServiceStatusGranted = "http://uri.etsi.org/TrstSvc/TrustedList/Svcstatus/granted";
 
@@ -32,6 +54,15 @@ internal static class TslQualificationMapper
         ServiceTypeQCertESeal,
     };
 
+    /// <summary>
+    /// Built-in qualified time-stamp service-type URIs (eIDAS Art. 42 conformant). Hosts may extend via
+    /// <see cref="TslQualificationMappingOptions.ExtraQualifiedTimestampServiceTypeUris"/> (e.g. national pre-eIDAS markers).
+    /// </summary>
+    private static readonly HashSet<string> QualifiedTimestampTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ServiceTypeTsaQTST,
+    };
+
     private static readonly HashSet<string> GrantedLikeStatuses = new(StringComparer.OrdinalIgnoreCase)
     {
         ServiceStatusGranted,
@@ -48,8 +79,10 @@ internal static class TslQualificationMapper
     {
         var esign = new HashSet<string>(QualifiedEsignTypes, StringComparer.OrdinalIgnoreCase);
         var eseal = new HashSet<string>(QualifiedEsealTypes, StringComparer.OrdinalIgnoreCase);
+        var qTsa = new HashSet<string>(QualifiedTimestampTypes, StringComparer.OrdinalIgnoreCase);
         TslQualificationUriSets.AddTrimmedNonEmpty(options?.ExtraQualifiedEsignServiceTypeUris, esign);
         TslQualificationUriSets.AddTrimmedNonEmpty(options?.ExtraQualifiedEsealServiceTypeUris, eseal);
+        TslQualificationUriSets.AddTrimmedNonEmpty(options?.ExtraQualifiedTimestampServiceTypeUris, qTsa);
 
         var granted = new HashSet<string>(GrantedLikeStatuses, StringComparer.OrdinalIgnoreCase);
         TslQualificationUriSets.AddTrimmedNonEmpty(options?.ExtraGrantedLikeServiceStatusUris, granted);
@@ -57,8 +90,15 @@ internal static class TslQualificationMapper
         var types = serviceTypeIdentifiers ?? Array.Empty<string>();
         var suggestsSign = false;
         var suggestsSeal = false;
-        foreach (var t in types)
+        var suggestsQTsa = false;
+        foreach (var raw in types)
         {
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                continue;
+            }
+
+            var t = raw.Trim();
             if (!suggestsSign && esign.Contains(t))
             {
                 suggestsSign = true;
@@ -69,7 +109,12 @@ internal static class TslQualificationMapper
                 suggestsSeal = true;
             }
 
-            if (suggestsSign && suggestsSeal)
+            if (!suggestsQTsa && qTsa.Contains(t))
+            {
+                suggestsQTsa = true;
+            }
+
+            if (suggestsSign && suggestsSeal && suggestsQTsa)
             {
                 break;
             }
@@ -82,6 +127,6 @@ internal static class TslQualificationMapper
             statusGranted = granted.Contains(trimmed);
         }
 
-        return new TslQualificationIndicators(suggestsSign, suggestsSeal, statusGranted);
+        return new TslQualificationIndicators(suggestsSign, suggestsSeal, suggestsQTsa, statusGranted);
     }
 }

@@ -1,5 +1,7 @@
+using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using eDocLib.Validation;
 using eDocLib.Validation.Reporting;
 using Org.BouncyCastle.Asn1;
@@ -96,6 +98,7 @@ public class ValidationReportQualificationsTests
         var tslOnlySign = new TslQualificationIndicators(
             SuggestsQualifiedElectronicSignature: true,
             SuggestsQualifiedElectronicSeal: false,
+            SuggestsQualifiedTimestampService: false,
             ServiceStatusIsGranted: true);
 
         var result = new SignatureValidationResult
@@ -110,28 +113,115 @@ public class ValidationReportQualificationsTests
     }
 
     [Fact]
-    public void EstimateTimestampQualification_archive_CMS_success_maps_to_Tsa()
+    public void EstimateTimestampQualification_signature_timestamp_imprint_maps_to_Tsa()
     {
-        var policy = new SignatureTrustPolicy { ValidateArchiveTimeStampCms = true };
+        var policy = new SignatureTrustPolicy { TimestampImprintPolicy = SignatureTimestampImprintPolicy.RequireWhenPresent };
         var result = new SignatureValidationResult
         {
-            ArchiveTimeStampCount = 1,
-            ArchiveTimeStampsCmsValid = true,
+            SignatureTimestampImprintValid = true,
         };
 
         Assert.Equal(TimestampQualification.Tsa, ValidationReportQualifications.EstimateTimestampQualification(policy, result));
     }
 
     [Fact]
-    public void EstimateTimestampQualification_archive_imprint_only_maps_to_Tsa()
+    public void EstimateTimestampQualification_tsa_cms_maps_to_Tsa()
     {
-        var policy = new SignatureTrustPolicy { ArchiveTimestampImprintPolicy = ArchiveTimestampImprintPolicy.RequireWhenPresent };
+        var policy = new SignatureTrustPolicy { ValidateTsaSigner = true };
         var result = new SignatureValidationResult
         {
-            ArchiveTimeStampCount = 1,
-            ArchiveTimeStampImprintsValid = true,
+            TsaSignerCmsValid = true,
         };
 
         Assert.Equal(TimestampQualification.Tsa, ValidationReportQualifications.EstimateTimestampQualification(policy, result));
+    }
+
+    [Fact]
+    public void EstimateTimestampQualification_lists_QTsa_when_policy_enforces_tsa_in_trusted_list_and_validation_succeeds()
+    {
+        using var rsa = RSA.Create(2048);
+        var req = new CertificateRequest("CN=TSL dummy", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        using var cert = req.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1));
+        var b64 = Convert.ToBase64String(cert.Export(X509ContentType.Cert));
+        const string typeA = TslQualificationMapper.ServiceTypeTsaQTST;
+        const string status = TslQualificationMapper.ServiceStatusGranted;
+        var xml = $"""
+            <?xml version="1.0" encoding="UTF-8"?>
+            <TrustServiceStatusList xmlns="http://uri.etsi.org/02231/v2#">
+              <TSPService>
+                <ServiceInformation>
+                  <ServiceTypeIdentifier>{typeA}</ServiceTypeIdentifier>
+                  <ServiceStatus>{status}</ServiceStatus>
+                  <ServiceDigitalIdentity>
+                    <DigitalId><X509Certificate>{b64}</X509Certificate></DigitalId>
+                  </ServiceDigitalIdentity>
+                </ServiceInformation>
+              </TSPService>
+            </TrustServiceStatusList>
+            """;
+        var index = TrustedListServiceIndex.FromStream(new MemoryStream(Encoding.UTF8.GetBytes(xml)));
+
+        var policy = new SignatureTrustPolicy
+        {
+            ValidateTsaSigner = true,
+            RequireTimestampAuthorityCertificateListedInTrustedList = true,
+            RequireTimestampAuthorityServiceStatusGranted = true,
+            RequireQualifiedTimestampServiceType = true,
+            TrustedListServiceIndex = index,
+        };
+        var result = new SignatureValidationResult
+        {
+            Success = true,
+            TsaSignerCmsValid = true,
+            TimestampAuthorityListedInTrustedList = true,
+            TimestampAuthorityTrustedListServiceTypeIdentifiers = new[] { typeA },
+            TimestampAuthorityTrustedListServiceStatus = status,
+            TimestampAuthorityTrustedListQualificationIndicators = new TslQualificationIndicators(
+                SuggestsQualifiedElectronicSignature: false,
+                SuggestsQualifiedElectronicSeal: false,
+                SuggestsQualifiedTimestampService: true,
+                ServiceStatusIsGranted: true),
+        };
+
+        Assert.Equal(TimestampQualification.QTsa, ValidationReportQualifications.EstimateTimestampQualification(policy, result));
+    }
+
+    [Fact]
+    public void EstimateTimestampQualification_stays_Tsa_when_tsl_index_null_even_if_require_flags_set()
+    {
+        var policy = new SignatureTrustPolicy
+        {
+            ValidateTsaSigner = true,
+            RequireTimestampAuthorityCertificateListedInTrustedList = true,
+            RequireTimestampAuthorityServiceStatusGranted = true,
+            TrustedListServiceIndex = null,
+        };
+        var result = new SignatureValidationResult
+        {
+            Success = true,
+            TsaSignerCmsValid = true,
+        };
+
+        Assert.Equal(TimestampQualification.Tsa, ValidationReportQualifications.EstimateTimestampQualification(policy, result));
+    }
+
+    [Fact]
+    public void EstimateSignerCertificateQualification_qc_compliance_both_types_with_sscd_maps_to_QcQscdUnknown()
+    {
+        using var cert = CreateCertWithQcStatements(
+            new QCStatement(new DerObjectIdentifier(SignerCertificateQualificationHeuristics.EtsiQcsQcCompliance)),
+            new QCStatement(new DerObjectIdentifier(SignerCertificateQualificationHeuristics.EtsiQcsQcSscd)),
+            new QCStatement(new DerObjectIdentifier(SignerCertificateQualificationHeuristics.EtsiQctEsign)),
+            new QCStatement(new DerObjectIdentifier(SignerCertificateQualificationHeuristics.EtsiQctEseal)));
+
+        var result = new SignatureValidationResult
+        {
+            Success = true,
+            ReferencesAndSignatureValid = true,
+            TrustedListQualificationIndicators = null,
+        };
+
+        var q = ValidationReportQualifications.EstimateSignerCertificateQualification(result, cert);
+        Assert.Equal(CertificateQualification.QcQscdUnknown, q);
     }
 }

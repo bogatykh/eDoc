@@ -37,6 +37,7 @@ public static class EdocValidation
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(edoc);
+        cancellationToken.ThrowIfCancellationRequested();
         trustPolicy ??= SignatureTrustPolicy.CryptographyOnly;
 
         var payloadSource = new EdocDataFilePayloadSource(edoc);
@@ -44,6 +45,10 @@ public static class EdocValidation
         var index = 0;
         foreach (var sig in edoc.Signatures)
         {
+            // Observe cancellation between signatures so a pre-cancelled token or one cancelled mid-loop
+            // stops iteration without depending on the downstream validator hitting an async checkpoint
+            // (synchronous CryptographyOnly path on self-signed certs has none).
+            cancellationToken.ThrowIfCancellationRequested();
             SignatureValidationResult result;
             if (sig is XadesSignature xs)
             {
@@ -79,7 +84,7 @@ public static class EdocValidation
     public static DocumentValidationReport BuildValidationReport(this EdocReadValidationResult result, SignatureTrustPolicy policy) =>
         BuildValidationReport(result, policy, reportOptions: null);
 
-    /// <summary>Builds a validation report for the opened container and each signature row.</summary>
+    /// <summary>Builds a validation report for the opened container and each signature row. Use <see cref="ValidationReportOptions"/> for reference time and optional tree/summary strings (<see cref="ValidationReportOptions.ReportLocalizer"/>).</summary>
     public static DocumentValidationReport BuildValidationReport(
         this EdocReadValidationResult result,
         SignatureTrustPolicy policy,
@@ -94,7 +99,7 @@ public static class EdocValidation
     public static DocumentValidationReport BuildValidationReport(this IEdocContainerValidationResult result, SignatureTrustPolicy policy) =>
         BuildValidationReport(result, policy, reportOptions: null);
 
-    /// <summary>Builds a validation report when the outcome is exposed as <see cref="IEdocContainerValidationResult"/>.</summary>
+    /// <summary>Builds a validation report when the outcome is exposed as <see cref="IEdocContainerValidationResult"/> (see <see cref="ValidationReportOptions"/>).</summary>
     public static DocumentValidationReport BuildValidationReport(
         this IEdocContainerValidationResult result,
         SignatureTrustPolicy policy,

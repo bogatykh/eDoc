@@ -404,4 +404,290 @@ public class XadesTAndSignerRolesTests
         Assert.True(report.AllSignaturesValid, report.Signatures[0].Result.Error);
         Assert.True(report.Signatures[0].Result.TsaSignerCmsValid);
     }
+
+    [Fact]
+    public void ForLatvianEdocLtv_without_tsl_sets_expected_defaults()
+    {
+        var policy = SignatureTrustPolicy.ForLatvianEdocLtv();
+
+        Assert.True(policy.ValidateCertificateChain);
+        Assert.True(policy.RequireXadesSigningCertificate);
+        Assert.True(policy.ValidateTsaSigner);
+        Assert.True(policy.ValidateTsaSignerChain);
+        Assert.True(policy.VerifyUnsignedRevocationWhenPresent);
+        Assert.Equal(SignatureTimestampImprintPolicy.RequireWhenPresent, policy.TimestampImprintPolicy);
+        Assert.False(policy.RequireSigningCertificateListedInTrustedList);
+        Assert.False(policy.RequireTimestampAuthorityCertificateListedInTrustedList);
+        Assert.False(policy.RequireQualifiedTimestampServiceType);
+    }
+
+    [Fact]
+    public void ForLatvianEdocLtv_with_tsl_requires_qualified_timestamp_service()
+    {
+        using var rsa = RSA.Create(2048);
+        var req = new CertificateRequest("CN=lv-tsl-defaults", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        using var cert = req.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1));
+        var index = BuildMinimalTslIndex((cert, TslQualificationMapper.ServiceTypeTsaQTST));
+
+        var policy = SignatureTrustPolicy.ForLatvianEdocLtv(index);
+
+        Assert.True(policy.RequireSigningCertificateListedInTrustedList);
+        Assert.True(policy.RequireTrustedListServiceStatusGranted);
+        Assert.True(policy.RequireTimestampAuthorityCertificateListedInTrustedList);
+        Assert.True(policy.RequireTimestampAuthorityServiceStatusGranted);
+        Assert.True(policy.RequireQualifiedTimestampServiceType);
+        Assert.Same(index, policy.TrustedListServiceIndex);
+    }
+
+    [Fact]
+    public async Task SignatureTimestamp_tsa_tsl_requirement_fails_when_tsa_not_listed()
+    {
+        using var signerRsa = RSA.Create(2048);
+        var signerReq = new CertificateRequest("CN=signer", signerRsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        using var signerCert = signerReq.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1));
+
+        var sig = await XadesBesSigner.SignWithTimestampAsync(
+            new[] { new DataFile(new MemoryStream("tsl-tsa"u8.ToArray()), "doc.txt", "text/plain") },
+            signerCert,
+            DateTimeOffset.Parse("2024-11-01T00:00:00Z"),
+            new LocalSha256Rfc3161TimestampProvider());
+
+        using var otherRsa = RSA.Create(2048);
+        var otherReq = new CertificateRequest("CN=other", otherRsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        using var otherCert = otherReq.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1));
+        var index = BuildMinimalTslIndex((otherCert, TslQualificationMapper.ServiceTypeQCertESign));
+
+        var policy = SignatureTrustPolicy.ForLatvianEdocLtv(index);
+        var result = await SignatureValidator.ValidateAsync(
+            sig,
+            new Dictionary<string, byte[]> { ["doc.txt"] = "tsl-tsa"u8.ToArray() },
+            policy);
+
+        Assert.False(result.Success);
+        Assert.Contains("TSA certificate is not listed", result.Error ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task SignatureTimestamp_tsa_tsl_requirement_passes_when_tsa_listed_and_granted()
+    {
+        using var signerRsa = RSA.Create(2048);
+        var signerReq = new CertificateRequest("CN=signer-ok", signerRsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        using var signerCert = signerReq.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1));
+
+        var payload = "tsl-tsa-ok"u8.ToArray();
+        var sig = await XadesBesSigner.SignWithTimestampAsync(
+            new[] { new DataFile(new MemoryStream(payload.ToArray()), "doc.txt", "text/plain") },
+            signerCert,
+            DateTimeOffset.Parse("2024-11-02T00:00:00Z"),
+            new LocalSha256Rfc3161TimestampProvider());
+
+        using var tsaPublic = LocalSha256Rfc3161TimestampProvider.EmbeddedTsaCertificate;
+        var index = BuildMinimalTslIndex(
+            (signerCert, TslQualificationMapper.ServiceTypeQCertESign),
+            (tsaPublic, TslQualificationMapper.ServiceTypeTsaQTST));
+        var roots = new X509Certificate2Collection();
+        roots.Add(signerCert);
+        roots.Add(tsaPublic);
+        var tsaRoots = new X509Certificate2Collection();
+        tsaRoots.Add(tsaPublic);
+        var policy = SignatureTrustPolicy.ForLatvianEdocLtv(index);
+        policy = new SignatureTrustPolicy
+        {
+            ValidateCertificateChain = policy.ValidateCertificateChain,
+            RevocationMode = policy.RevocationMode,
+            RequireXadesSigningCertificate = policy.RequireXadesSigningCertificate,
+            TimestampImprintPolicy = policy.TimestampImprintPolicy,
+            ValidateTsaSigner = policy.ValidateTsaSigner,
+            ValidateTsaSignerChain = policy.ValidateTsaSignerChain,
+            VerifyUnsignedRevocationWhenPresent = policy.VerifyUnsignedRevocationWhenPresent,
+            TrustedListServiceIndex = policy.TrustedListServiceIndex,
+            TrustedListQualificationReferenceTimeUtc = policy.TrustedListQualificationReferenceTimeUtc,
+            RequireSigningCertificateListedInTrustedList = policy.RequireSigningCertificateListedInTrustedList,
+            RequireTrustedListServiceStatusGranted = policy.RequireTrustedListServiceStatusGranted,
+            RequireTimestampAuthorityCertificateListedInTrustedList = policy.RequireTimestampAuthorityCertificateListedInTrustedList,
+            RequireTimestampAuthorityServiceStatusGranted = policy.RequireTimestampAuthorityServiceStatusGranted,
+            RequireQualifiedTimestampServiceType = policy.RequireQualifiedTimestampServiceType,
+            MergeTrustListQualificationUriDefaults = policy.MergeTrustListQualificationUriDefaults,
+            CustomTrustAnchors = roots,
+            TsaTrustAnchors = tsaRoots,
+        };
+        var result = await SignatureValidator.ValidateAsync(
+            sig,
+            new Dictionary<string, byte[]> { ["doc.txt"] = payload },
+            policy);
+
+        Assert.True(result.Success, result.Error);
+        Assert.True(result.TsaSignerCmsValid);
+        Assert.Equal(
+            global::eDocLib.Validation.Reporting.TimestampQualification.QTsa,
+            global::eDocLib.Validation.Reporting.ValidationReportQualifications.EstimateTimestampQualification(policy, result));
+    }
+
+    [Fact]
+    public async Task SignatureTimestamp_qualified_timestamp_gate_rejects_generic_tsa_service_type()
+    {
+        using var signerRsa = RSA.Create(2048);
+        var signerReq = new CertificateRequest("CN=signer-qtsa-fail", signerRsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        using var signerCert = signerReq.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1));
+
+        var payload = "qtsa-fail"u8.ToArray();
+        var sig = await XadesBesSigner.SignWithTimestampAsync(
+            new[] { new DataFile(new MemoryStream(payload.ToArray()), "doc.txt", "text/plain") },
+            signerCert,
+            DateTimeOffset.Parse("2025-02-01T00:00:00Z"),
+            new LocalSha256Rfc3161TimestampProvider());
+
+        using var tsaPublic = LocalSha256Rfc3161TimestampProvider.EmbeddedTsaCertificate;
+        var index = BuildMinimalTslIndex(
+            (signerCert, TslQualificationMapper.ServiceTypeQCertESign),
+            (tsaPublic, TslQualificationMapper.ServiceTypeTsa));
+
+        var policy = new SignatureTrustPolicy
+        {
+            ValidateCertificateChain = true,
+            RevocationMode = X509RevocationMode.NoCheck,
+            RequireXadesSigningCertificate = true,
+            TimestampImprintPolicy = SignatureTimestampImprintPolicy.RequireWhenPresent,
+            ValidateTsaSigner = true,
+            ValidateTsaSignerChain = true,
+            TrustedListServiceIndex = index,
+            RequireTimestampAuthorityCertificateListedInTrustedList = true,
+            RequireTimestampAuthorityServiceStatusGranted = true,
+            RequireQualifiedTimestampServiceType = true,
+            CustomTrustAnchors = new X509Certificate2Collection { signerCert, tsaPublic },
+            TsaTrustAnchors = new X509Certificate2Collection { tsaPublic },
+        };
+
+        var result = await SignatureValidator.ValidateAsync(
+            sig,
+            new Dictionary<string, byte[]> { ["doc.txt"] = payload },
+            policy);
+
+        Assert.False(result.Success);
+        Assert.Contains(
+            "qualified time-stamping service",
+            result.Error ?? string.Empty,
+            StringComparison.OrdinalIgnoreCase);
+        Assert.True(result.TimestampAuthorityListedInTrustedList);
+        Assert.NotNull(result.TimestampAuthorityTrustedListQualificationIndicators);
+        Assert.False(result.TimestampAuthorityTrustedListQualificationIndicators!.SuggestsQualifiedTimestampService);
+    }
+
+    [Fact]
+    public async Task SignatureTimestamp_qualified_timestamp_gate_accepts_legacy_tss_qc_via_lv_defaults()
+    {
+        using var signerRsa = RSA.Create(2048);
+        var signerReq = new CertificateRequest("CN=signer-tssqc", signerRsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        using var signerCert = signerReq.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1));
+
+        var payload = "qtsa-legacy"u8.ToArray();
+        var sig = await XadesBesSigner.SignWithTimestampAsync(
+            new[] { new DataFile(new MemoryStream(payload.ToArray()), "doc.txt", "text/plain") },
+            signerCert,
+            DateTimeOffset.Parse("2025-02-02T00:00:00Z"),
+            new LocalSha256Rfc3161TimestampProvider());
+
+        using var tsaPublic = LocalSha256Rfc3161TimestampProvider.EmbeddedTsaCertificate;
+        var index = BuildMinimalTslIndex(
+            (signerCert, TslQualificationMapper.ServiceTypeQCertESign),
+            (tsaPublic, TslQualificationMapper.ServiceTypeTsaTssQC));
+
+        var policy = SignatureTrustPolicy.ForLatvianEdocLtv(index);
+        policy = new SignatureTrustPolicy
+        {
+            ValidateCertificateChain = policy.ValidateCertificateChain,
+            RevocationMode = policy.RevocationMode,
+            RequireXadesSigningCertificate = policy.RequireXadesSigningCertificate,
+            TimestampImprintPolicy = policy.TimestampImprintPolicy,
+            ValidateTsaSigner = policy.ValidateTsaSigner,
+            ValidateTsaSignerChain = policy.ValidateTsaSignerChain,
+            VerifyUnsignedRevocationWhenPresent = policy.VerifyUnsignedRevocationWhenPresent,
+            TrustedListServiceIndex = policy.TrustedListServiceIndex,
+            TrustedListQualificationReferenceTimeUtc = policy.TrustedListQualificationReferenceTimeUtc,
+            RequireSigningCertificateListedInTrustedList = policy.RequireSigningCertificateListedInTrustedList,
+            RequireTrustedListServiceStatusGranted = policy.RequireTrustedListServiceStatusGranted,
+            RequireTimestampAuthorityCertificateListedInTrustedList = policy.RequireTimestampAuthorityCertificateListedInTrustedList,
+            RequireTimestampAuthorityServiceStatusGranted = policy.RequireTimestampAuthorityServiceStatusGranted,
+            RequireQualifiedTimestampServiceType = policy.RequireQualifiedTimestampServiceType,
+            MergeTrustListQualificationUriDefaults = policy.MergeTrustListQualificationUriDefaults,
+            CustomTrustAnchors = new X509Certificate2Collection { signerCert, tsaPublic },
+            TsaTrustAnchors = new X509Certificate2Collection { tsaPublic },
+        };
+
+        var result = await SignatureValidator.ValidateAsync(
+            sig,
+            new Dictionary<string, byte[]> { ["doc.txt"] = payload },
+            policy);
+
+        Assert.True(result.Success, result.Error);
+        Assert.NotNull(result.TimestampAuthorityTrustedListQualificationIndicators);
+        Assert.True(result.TimestampAuthorityTrustedListQualificationIndicators!.SuggestsQualifiedTimestampService);
+        Assert.True(result.TimestampAuthorityTrustedListQualificationIndicators!.ServiceStatusIsGranted);
+    }
+
+    [Fact]
+    public async Task SignatureTimestamp_qualified_gate_without_tsl_fails_closed()
+    {
+        using var rsa = RSA.Create(2048);
+        var req = new CertificateRequest("CN=qtsa-no-tsl", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        using var cert = req.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1));
+        var payload = "qtsa-no-tsl"u8.ToArray();
+        var sig = await XadesBesSigner.SignWithTimestampAsync(
+            new[] { new DataFile(new MemoryStream(payload.ToArray()), "doc.txt", "text/plain") },
+            cert,
+            DateTimeOffset.Parse("2025-02-03T00:00:00Z"),
+            new LocalSha256Rfc3161TimestampProvider());
+
+        var policy = new SignatureTrustPolicy
+        {
+            ValidateTsaSigner = true,
+            TimestampImprintPolicy = SignatureTimestampImprintPolicy.RequireWhenPresent,
+            RequireQualifiedTimestampServiceType = true,
+        };
+
+        var result = await SignatureValidator.ValidateAsync(
+            sig,
+            new Dictionary<string, byte[]> { ["doc.txt"] = payload },
+            policy);
+
+        Assert.False(result.Success);
+        Assert.Contains(
+            "TrustedListServiceIndex",
+            result.Error ?? string.Empty,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static TrustedListServiceIndex BuildMinimalTslIndex(
+        params (X509Certificate2 Certificate, string ServiceType)[] entries) =>
+        BuildMinimalTslIndex(TslQualificationMapper.ServiceStatusGranted, entries);
+
+    private static TrustedListServiceIndex BuildMinimalTslIndex(
+        string serviceStatus,
+        params (X509Certificate2 Certificate, string ServiceType)[] entries)
+    {
+        var blocks = new StringBuilder();
+        foreach (var (cert, serviceType) in entries)
+        {
+            var b64 = Convert.ToBase64String(cert.Export(X509ContentType.Cert));
+            blocks.Append($"""
+                <TSPService>
+                  <ServiceInformation>
+                    <ServiceTypeIdentifier>{serviceType}</ServiceTypeIdentifier>
+                    <ServiceStatus>{serviceStatus}</ServiceStatus>
+                    <ServiceDigitalIdentity>
+                      <DigitalId><X509Certificate>{b64}</X509Certificate></DigitalId>
+                    </ServiceDigitalIdentity>
+                  </ServiceInformation>
+                </TSPService>
+                """);
+        }
+
+        var xml = $"""
+            <?xml version="1.0" encoding="UTF-8"?>
+            <TrustServiceStatusList xmlns="http://uri.etsi.org/02231/v2#">
+              {blocks}
+            </TrustServiceStatusList>
+            """;
+        return TrustedListServiceIndex.FromStream(new MemoryStream(Encoding.UTF8.GetBytes(xml)));
+    }
 }

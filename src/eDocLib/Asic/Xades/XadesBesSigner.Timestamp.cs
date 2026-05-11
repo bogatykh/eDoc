@@ -137,12 +137,12 @@ internal static partial class XadesBesSigner
         AppendEncapsulatedTimestamp(owner, "SignatureTimeStamp", signatureTimestampId, timeStampTokenDer);
 
     /// <summary>
-    /// Appends an XAdES timestamp wrapper element (<c>SignatureTimeStamp</c> or <c>ArchiveTimeStamp</c>) with a
+    /// Appends an XAdES timestamp wrapper element (for example <c>SignatureTimeStamp</c>) with a
     /// child <c>EncapsulatedTimeStamp</c> carrying the Base64-encoded RFC 3161 token, under
     /// <c>UnsignedSignatureProperties</c>.
     /// </summary>
     /// <param name="owner">Signature owner document.</param>
-    /// <param name="wrapperLocalName">Local name of the wrapper element (e.g. <c>SignatureTimeStamp</c>, <c>ArchiveTimeStamp</c>).</param>
+    /// <param name="wrapperLocalName">Local name of the wrapper element (e.g. <c>SignatureTimeStamp</c>).</param>
     /// <param name="wrapperId">Value of the wrapper element's <c>Id</c> attribute.</param>
     /// <param name="timeStampTokenDer">RFC 3161 timestamp token, DER-encoded.</param>
     private static void AppendEncapsulatedTimestamp(

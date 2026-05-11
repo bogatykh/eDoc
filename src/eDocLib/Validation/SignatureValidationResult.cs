@@ -49,26 +49,24 @@ public sealed record SignatureValidationResult
     /// </summary>
     public IReadOnlyList<CertificateChainDiagnostic>? TsaSignerCertificateChain { get; init; }
 
-    /// <summary>Count of <c>xades:ArchiveTimeStamp</c> tokens with decodable <c>EncapsulatedTimeStamp</c> DER when archive policy ran.</summary>
-    public int ArchiveTimeStampCount { get; init; }
+    /// <summary>
+    /// When a <see cref="SignatureTrustPolicy.TrustedListServiceIndex"/> was configured and the TSA certificate was
+    /// looked up: <c>true</c> if the TSA cert matched a listed service; <c>false</c> if not. <c>null</c> when no TSL
+    /// lookup ran (no embedded timestamp or no index).
+    /// </summary>
+    public bool? TimestampAuthorityListedInTrustedList { get; init; }
+
+    /// <summary><c>ServiceTypeIdentifier</c> URIs from the TSA's matched TSL <c>ServiceInformation</c> block (when listed).</summary>
+    public IReadOnlyList<string>? TimestampAuthorityTrustedListServiceTypeIdentifiers { get; init; }
+
+    /// <summary><c>ServiceStatus</c> URI from the TSA's matched TSL block (when listed).</summary>
+    public string? TimestampAuthorityTrustedListServiceStatus { get; init; }
 
     /// <summary>
-    /// When <see cref="SignatureTrustPolicy.ValidateArchiveTimeStampCms"/> ran and at least one archive token was present:
-    /// <c>true</c> if every token passed CMS verification. Otherwise <c>null</c>.
+    /// Mapped TSL indicators for the TSA service (qualified-TSA recognition, granted status), when the TSA
+    /// certificate was listed in <see cref="SignatureTrustPolicy.TrustedListServiceIndex"/>.
     /// </summary>
-    public bool? ArchiveTimeStampsCmsValid { get; init; }
-
-    /// <summary>
-    /// When <see cref="SignatureTrustPolicy.ValidateArchiveTimeStampChain"/> ran: <c>true</c> if every archive TSA chain built.
-    /// Otherwise <c>null</c>.
-    /// </summary>
-    public bool? ArchiveTimeStampsChainValid { get; init; }
-
-    /// <summary>
-    /// When <see cref="SignatureTrustPolicy.ArchiveTimestampImprintPolicy"/> required imprint verification and at least one archive
-    /// token was present: <c>true</c> if every imprint matched the reconstructed digest input. Otherwise <c>null</c>.
-    /// </summary>
-    public bool? ArchiveTimeStampImprintsValid { get; init; }
+    public TslQualificationIndicators? TimestampAuthorityTrustedListQualificationIndicators { get; init; }
 
     /// <summary>
     /// When a <see cref="SignatureTrustPolicy.TrustedListServiceIndex"/> was configured: <c>true</c> if the signing certificate

@@ -9,7 +9,7 @@ namespace eDocLib.Validation.Reporting;
 /// overrides dictionary. Keys use <c>{EnumTypeName}.{EnumMemberName}</c>, for example
 /// <c>SignatureValidationIndication.TotalPassed</c>,
 /// <c>ValidationStatus.Passed</c>, <c>ValidationType.Signature</c>, <c>SignatureProfile.BasicSignature</c>,
-/// <c>LegalBasisHint.TotalFailed</c>.
+/// <c>ValidationSignatureType.EdocV2</c>, <c>LegalBasisHint.TotalFailed</c>.
 /// </summary>
 internal sealed class DictionaryValidationReportLocalizer : IValidationReportLocalizer
 {

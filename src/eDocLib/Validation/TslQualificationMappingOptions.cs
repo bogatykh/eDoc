@@ -13,6 +13,14 @@ public sealed class TslQualificationMappingOptions
     public IReadOnlyCollection<string>? ExtraQualifiedEsealServiceTypeUris { get; init; }
 
     /// <summary>
+    /// Additional <c>ServiceTypeIdentifier</c> URIs counted as qualified time-stamp service (TSA) hints.
+    /// The mapper recognises ETSI <c>TSA/QTST</c> by default; use this to add legacy or national URIs
+    /// (for example <see cref="TslQualificationMapper.ServiceTypeTsaTssQC"/> /
+    /// <see cref="TslQualificationMapper.ServiceTypeTsaTssAdESQCandQES"/> for pre-eIDAS records).
+    /// </summary>
+    public IReadOnlyCollection<string>? ExtraQualifiedTimestampServiceTypeUris { get; init; }
+
+    /// <summary>
     /// Union of URI collections (case-insensitive); when both inputs are empty, returns <c>null</c>.
     /// </summary>
     public static TslQualificationMappingOptions? Merge(TslQualificationMappingOptions? baseline, TslQualificationMappingOptions? extras)
@@ -35,6 +43,7 @@ public sealed class TslQualificationMappingOptions
             ExtraGrantedLikeServiceStatusUris = Union(baseline?.ExtraGrantedLikeServiceStatusUris, extras?.ExtraGrantedLikeServiceStatusUris),
             ExtraQualifiedEsignServiceTypeUris = Union(baseline?.ExtraQualifiedEsignServiceTypeUris, extras?.ExtraQualifiedEsignServiceTypeUris),
             ExtraQualifiedEsealServiceTypeUris = Union(baseline?.ExtraQualifiedEsealServiceTypeUris, extras?.ExtraQualifiedEsealServiceTypeUris),
+            ExtraQualifiedTimestampServiceTypeUris = Union(baseline?.ExtraQualifiedTimestampServiceTypeUris, extras?.ExtraQualifiedTimestampServiceTypeUris),
         };
     }
 }

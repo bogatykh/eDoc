@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Security.Cryptography.Xml;
@@ -98,10 +99,6 @@ internal class XadesSignature : ISignature
     /// <summary>DER CRLs from unsigned <c>RevocationValues</c> / <c>CRLValues</c>.</summary>
     public IReadOnlyList<byte[]> UnsignedEncapsulatedCrlDer =>
         XadesUnsignedEmbeddedValues.ReadEncapsulatedCrls(GetSignatureOwnerDocument());
-
-    /// <summary>DER of each RFC 3161 token under <c>xades:ArchiveTimeStamp</c> / <c>EncapsulatedTimeStamp</c> (XAdES-A / LTA).</summary>
-    public IReadOnlyList<byte[]> UnsignedEncapsulatedArchiveTimeStampDer =>
-        XadesUnsignedEmbeddedValues.ReadEncapsulatedArchiveTimeStamps(GetSignatureOwnerDocument());
 
     /// <summary>Writes to.</summary>
     /// <inheritdoc />
@@ -222,6 +219,13 @@ internal class XadesSignature : ISignature
     }
 
     /// <summary>Parses XAdES <c>SigningTime</c> from signed properties when present.</summary>
+    /// <remarks>
+    /// Uses <see cref="CultureInfo.InvariantCulture"/> with <see cref="DateTimeStyles.AssumeUniversal"/> +
+    /// <see cref="DateTimeStyles.AdjustToUniversal"/> for two reasons: <c>xsd:dateTime</c> is culture-neutral
+    /// (so the current-culture default risks Turkish-I / non-Gregorian-calendar pitfalls), and a SigningTime
+    /// written without an explicit offset must be treated as UTC rather than the validator host's local time
+    /// (otherwise the parsed instant drifts across machines). Matches <c>Tsl.Xml.TslXmlText</c>.
+    /// </remarks>
     private static DateTimeOffset? TryReadClaimedSigningTime(XmlDocument doc)
     {
         var nsm = XadesXmlNamespaces.ForXades(doc.NameTable);
@@ -231,6 +235,12 @@ internal class XadesSignature : ISignature
             return null;
         }
 
-        return DateTimeOffset.TryParse(node.InnerText.Trim(), out var t) ? t : null;
+        return DateTimeOffset.TryParse(
+            node.InnerText.Trim(),
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+            out var t)
+            ? t
+            : null;
     }
 }

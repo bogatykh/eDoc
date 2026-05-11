@@ -5,6 +5,7 @@ using System.Text;
 using System.Xml.Linq;
 using eDocLib.Asic.Container;
 using eDocLib.Asic.Manifest;
+using eDocLib.Timestamp;
 using eDocLib.Validation;
 using eDocLib.Asic.Xades;
 using ICSharpCode.SharpZipLib.Zip;
@@ -126,6 +127,66 @@ public class EdocNegativeAndParallelTests
         zip.Position = 0;
         using var za = new ZipArchive(zip, ZipArchiveMode.Read, leaveOpen: true);
         Assert.Equal(2, za.Entries.Count(e => e.FullName.StartsWith("META-INF/signatures", StringComparison.OrdinalIgnoreCase) && e.FullName.EndsWith(".xml", StringComparison.OrdinalIgnoreCase)));
+    }
+
+    [Fact]
+    public async Task C08_parallel_two_signatures_with_lt_material_and_timestamp_validate()
+    {
+        using var rsa1 = RSA.Create(2048);
+        using var rsa2 = RSA.Create(2048);
+        var req1 = new CertificateRequest("CN=lt-1", rsa1, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        var req2 = new CertificateRequest("CN=lt-2", rsa2, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        using var cert1 = req1.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1));
+        using var cert2 = req2.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1));
+
+        var payload = "parallel-lt"u8.ToArray();
+        var timestampProvider = new LocalSha256Rfc3161TimestampProvider();
+
+        var sig1 = await XadesBesSigner.SignWithTimestampAsync(
+            new[] { new DataFile(new MemoryStream(payload.ToArray()), "doc.txt", "text/plain") },
+            cert1,
+            DateTimeOffset.Parse("2024-10-01T00:00:00Z"),
+            timestampProvider,
+            signatureId: "lt-sig-1",
+            signedPropertiesId: "lt-props-1");
+        XadesBesSigner.AppendUnsignedLongTermMaterial(
+            sig1,
+            new[] { cert1 },
+            Array.Empty<byte[]>(),
+            Array.Empty<byte[]>(),
+            CertificateValuesWireFormat.EncapsulatedX509);
+
+        var sig2 = await XadesBesSigner.SignWithTimestampAsync(
+            new[] { new DataFile(new MemoryStream(payload.ToArray()), "doc.txt", "text/plain") },
+            cert2,
+            DateTimeOffset.Parse("2024-10-01T00:05:00Z"),
+            timestampProvider,
+            signatureId: "lt-sig-2",
+            signedPropertiesId: "lt-props-2");
+        XadesBesSigner.AppendUnsignedLongTermMaterial(
+            sig2,
+            new[] { cert2 },
+            Array.Empty<byte[]>(),
+            Array.Empty<byte[]>(),
+            CertificateValuesWireFormat.EncapsulatedX509);
+
+        var edoc = Edoc.CreateNew();
+        edoc.AddDataFile(new MemoryStream(payload.ToArray()), "doc.txt", "text/plain");
+        edoc.AddSignature(sig1);
+        edoc.AddSignature(sig2);
+
+        using var zip = new MemoryStream();
+        edoc.Save(zip);
+        zip.Position = 0;
+
+        var report = await EdocValidation.OpenAndValidateAsync(zip, SignatureTrustPolicy.CryptographyAndTimestampImprint);
+        Assert.True(report.AllSignaturesValid);
+        Assert.Equal(2, report.Signatures.Count);
+        Assert.All(report.Signatures, s =>
+        {
+            Assert.True(s.Result.Success, s.Result.Error);
+            Assert.True(s.Result.SignatureTimestampImprintValid);
+        });
     }
 
     private static (byte[] ZipBytes, X509Certificate2 Cert) CreateSignedOneFileEdoc(byte[] payload)
