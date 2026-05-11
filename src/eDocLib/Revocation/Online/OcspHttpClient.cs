@@ -1,6 +1,6 @@
 using System.Net.Http.Headers;
 using System.Security.Cryptography.X509Certificates;
-
+using eDocLib;
 using eDocLib.Revocation.Protocols.Ocsp;
 
 namespace eDocLib.Revocation.Online;
@@ -11,16 +11,11 @@ namespace eDocLib.Revocation.Online;
 /// </summary>
 internal sealed class OcspHttpClient : IDisposable
 {
-    /// <summary>Stores the HTTP.</summary>
-    private readonly HttpClient _http;
-    /// <summary>Stores the owned client.</summary>
-    private readonly IDisposable? _ownedClient;
+    private readonly HttpClientOwnership.HttpClientLease _http;
 
     /// <summary>Initializes a new OCSP HTTP client instance.</summary>
-    public OcspHttpClient(HttpClient? httpClient = null)
-    {
-        (_http, _ownedClient) = HttpClientOwnership.FromOptional(httpClient);
-    }
+    public OcspHttpClient(HttpClient? httpClient = null) =>
+        _http = new HttpClientOwnership.HttpClientLease(httpClient);
 
     /// <summary>
     /// Sends <see cref="OcspRequestBuilder.BuildDer"/> to <paramref name="ocspResponder"/> and returns the response body.
@@ -47,7 +42,7 @@ internal sealed class OcspHttpClient : IDisposable
         using var request = new HttpRequestMessage(HttpMethod.Post, ocspResponder) { Content = content };
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/ocsp-response"));
 
-        using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        using var response = await _http.Client.SendAsync(request, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
         return await RevocationResponseBodyReader.ReadAsByteArrayWithLimitAsync(
                 response.Content,
@@ -57,8 +52,5 @@ internal sealed class OcspHttpClient : IDisposable
     }
 
     /// <summary>Releases owned resources.</summary>
-    public void Dispose()
-    {
-        _ownedClient?.Dispose();
-    }
+    public void Dispose() => _http.Dispose();
 }

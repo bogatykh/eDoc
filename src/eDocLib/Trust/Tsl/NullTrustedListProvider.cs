@@ -6,7 +6,6 @@ namespace eDocLib.Trust.Tsl;
 /// </summary>
 public sealed class NullTrustedListProvider : ITrustedListProvider
 {
-    /// <summary>Gets a trusted list stream asynchronously.</summary>
     /// <inheritdoc />
     public Task<Stream> GetTrustedListAsync(string territory, CancellationToken cancellationToken = default)
     {

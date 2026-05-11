@@ -5,7 +5,6 @@ namespace eDocLib.Revocation.Cache;
 /// <summary>Stable cache key strings for OCSP/CRL DER (versioned prefix for future algorithm changes).</summary>
 internal static class RevocationDerCacheKeys
 {
-    /// <summary>Defines the version value.</summary>
     private const string Version = "v1";
 
     /// <summary>Key for OCSP response: responder URI + leaf/issuer thumbprints + leaf serial (hex).</summary>

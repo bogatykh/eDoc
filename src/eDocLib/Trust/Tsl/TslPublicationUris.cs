@@ -5,13 +5,11 @@ namespace eDocLib.Trust.Tsl;
 /// </summary>
 internal static class TslPublicationUris
 {
-    /// <summary>Defines the eu list of trusted lists value.</summary>
     public const string EuListOfTrustedLists = "https://ec.europa.eu/tools/lotl/eu-lotl.xml";
 
     /// <summary>EU third-country AdES list of trusted lists.</summary>
     public const string EuThirdCountryAdesListOfTrustedLists = "https://ec.europa.eu/tools/lotl/mra/ades-lotl.xml";
 
-    /// <summary>Defines the eu lotl territory key value.</summary>
     public const string EuLotlTerritoryKey = "EU";
 
     /// <summary>Territory key for <see cref="EuThirdCountryAdesListOfTrustedLists"/>.</summary>

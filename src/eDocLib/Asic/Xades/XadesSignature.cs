@@ -22,7 +22,6 @@ internal class XadesSignature : ISignature
     /// <summary>Default XAdES XML namespace for elements produced by this library.</summary>
     public const string XadesNamespaceUrl = "http://uri.etsi.org/01903/v1.3.2#";
 
-    /// <summary>Stores the signed XML.</summary>
     private readonly SignedXml _signedXml;
 
     /// <summary>Initializes a new XAdES signature instance.</summary>
@@ -41,18 +40,15 @@ internal class XadesSignature : ISignature
         _signedXml.LoadXml(el);
     }
 
-    /// <summary>Stores the signed XML core.</summary>
     internal SignedXml SignedXmlCore => _signedXml;
 
     /// <summary>Full signature XML document (root element is <c>ds:Signature</c>).</summary>
     public XmlDocument GetSignatureOwnerDocument() =>
         _signedXml.GetXml()?.OwnerDocument ?? throw new InvalidOperationException("Signature is not attached to a document.");
 
-    /// <summary>Stores the ID.</summary>
     /// <inheritdoc />
     public string Id => _signedXml.Signature?.Id ?? string.Empty;
 
-    /// <summary>Stores the signature method.</summary>
     /// <inheritdoc />
     public string SignatureMethod => _signedXml.SignatureMethod ?? string.Empty;
 
@@ -71,11 +67,9 @@ internal class XadesSignature : ISignature
         }
     }
 
-    /// <summary>Stores the signer roles.</summary>
     /// <inheritdoc />
     public IReadOnlyCollection<string> SignerRoles => ParseSignerRoles(_signedXml);
 
-    /// <summary>Stores the signature production place.</summary>
     /// <inheritdoc />
     public SignatureProductionPlace? SignatureProductionPlace => ParseSignatureProductionPlace(_signedXml);
 
@@ -227,7 +221,7 @@ internal class XadesSignature : ISignature
         return new SignatureProductionPlace(city, state, postal, country);
     }
 
-    /// <summary>Attempts to read claimed signing time.</summary>
+    /// <summary>Parses XAdES <c>SigningTime</c> from signed properties when present.</summary>
     private static DateTimeOffset? TryReadClaimedSigningTime(XmlDocument doc)
     {
         var nsm = XadesXmlNamespaces.ForXades(doc.NameTable);

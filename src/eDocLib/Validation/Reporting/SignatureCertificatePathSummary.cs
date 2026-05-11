@@ -10,18 +10,16 @@ public sealed record SignatureCertificatePathSummary(
     IReadOnlyList<CertificateChainDiagnostic>? SigningCertificatePath,
     IReadOnlyList<CertificateChainDiagnostic>? TimeStampAuthorityPath)
 {
-    /// <summary>Creates a value from signature validation result.</summary>
+    /// <summary>Builds path summaries from PKIX diagnostics on <paramref name="result"/>.</summary>
     public static SignatureCertificatePathSummary FromSignatureValidationResult(SignatureValidationResult result)
     {
         ArgumentNullException.ThrowIfNull(result);
         return new SignatureCertificatePathSummary(result.SignerCertificateChain, result.TsaSignerCertificateChain);
     }
 
-    /// <summary>Stores the signing path fully trusted.</summary>
     /// <inheritdoc cref="CertificatePathStatus.AllElementsNoError(IReadOnlyList{CertificateChainDiagnostic}?)"/>
     public bool? SigningPathFullyTrusted => CertificatePathStatus.AllElementsNoError(SigningCertificatePath);
 
-    /// <summary>Stores the time stamp authority path fully trusted.</summary>
     /// <inheritdoc cref="CertificatePathStatus.AllElementsNoError(IReadOnlyList{CertificateChainDiagnostic}?)"/>
     public bool? TimeStampAuthorityPathFullyTrusted =>
         CertificatePathStatus.AllElementsNoError(TimeStampAuthorityPath);

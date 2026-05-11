@@ -1,19 +1,17 @@
 using System.Linq;
+using eDocLib;
 
 namespace eDocLib.Revocation;
 
 /// <summary>
 /// Stores revocation DER as files named SHA-256(hex UTF-8 key) + <c>.der</c>.
-/// <see cref="SetAsync"/> writes to a <c>*.tmp</c> file and atomically replaces the target (<see cref="File.Move(string,string,bool)"/>),
-/// so readers either see the previous file or the full new payload, not a partial write.
+/// <see cref="SetAsync"/> uses <see cref="IoSafe.WriteAllBytesAtomicAsync"/> so readers either see the previous file or the full new payload, not a partial write.
 /// Optional <see cref="RevocationDerCacheDirectoryOptions.MaxEntryCount"/> / <see cref="RevocationDerCacheDirectoryOptions.MaxTotalBytes"/>
 /// evict oldest files (by last write time UTC, then path) after writes and from <see cref="PurgeExpiredEntriesAsync"/>.
 /// </summary>
 public sealed class DirectoryRevocationDerCache : IRevocationDerCache
 {
-    /// <summary>Stores the directory.</summary>
     private readonly string _directory;
-    /// <summary>Stores the options.</summary>
     private readonly RevocationDerCacheDirectoryOptions? _options;
 
     /// <summary>Initializes a new directory revocation DER cache instance.</summary>
@@ -43,7 +41,6 @@ public sealed class DirectoryRevocationDerCache : IRevocationDerCache
     /// <summary>Directory used to store cached DER files.</summary>
     public string DirectoryPath => _directory;
 
-    /// <summary>Attempts to get async.</summary>
     /// <inheritdoc />
     public async ValueTask<byte[]?> TryGetAsync(string key, CancellationToken cancellationToken = default)
     {
@@ -67,16 +64,13 @@ public sealed class DirectoryRevocationDerCache : IRevocationDerCache
         return await File.ReadAllBytesAsync(path, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>Sets async.</summary>
     /// <inheritdoc />
     public async Task SetAsync(string key, ReadOnlyMemory<byte> der, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
         Directory.CreateDirectory(_directory);
         var path = GetPathForKey(key);
-        var tmp = path + ".tmp";
-        await File.WriteAllBytesAsync(tmp, der.ToArray(), cancellationToken).ConfigureAwait(false);
-        File.Move(tmp, path, overwrite: true);
+        await IoSafe.WriteAllBytesAtomicAsync(path, der, cancellationToken).ConfigureAwait(false);
         EnforceCapacityLimits();
     }
 

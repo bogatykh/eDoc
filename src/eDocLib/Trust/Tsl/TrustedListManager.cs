@@ -9,14 +9,14 @@ namespace eDocLib.Trust.Tsl;
 /// </summary>
 public sealed class TrustedListManager
 {
-    /// <summary>Stores the provider.</summary>
     private readonly ITrustedListProvider _provider;
 
     /// <summary>Initializes a new trusted list manager instance.</summary>
     /// <param name="provider">Provider used to retrieve trusted-list XML streams.</param>
     public TrustedListManager(ITrustedListProvider provider)
     {
-        _provider = provider ?? throw new ArgumentNullException(nameof(provider));
+        ArgumentNullException.ThrowIfNull(provider);
+        _provider = provider;
     }
 
     /// <summary>

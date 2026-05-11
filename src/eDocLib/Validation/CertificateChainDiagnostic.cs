@@ -16,7 +16,7 @@ public sealed record CertificateChainDiagnostic(
 /// <summary>Maps <see cref="X509Chain"/> after <see cref="X509Chain.Build"/> to a flat ordered list (end-entity first).</summary>
 internal static class CertificateChainDiagnostics
 {
-    /// <summary>Creates a value from chain.</summary>
+    /// <summary>Maps PKIX chain elements to diagnostics (end-entity first).</summary>
     public static IReadOnlyList<CertificateChainDiagnostic>? FromChain(X509Chain chain)
     {
         ArgumentNullException.ThrowIfNull(chain);

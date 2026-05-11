@@ -20,24 +20,21 @@ namespace eDocLib.Asic.Container {
         /// </summary>
         public const long DefaultPayloadMemoryThresholdBytes = 32 * 1024 * 1024;
 
-        /// <summary>Defines the mime type file name value.</summary>
+        /// <summary>ASiC-E first-entry file name for the MIME type payload (<c>mimetype</c>, stored).</summary>
         internal const string MimeTypeFileName = "mimetype";
-        /// <summary>Defines the meta folder name value.</summary>
+        /// <summary><c>META-INF</c> folder for manifest and detached signatures.</summary>
         internal const string MetaFolderName = "META-INF";
-        /// <summary>Defines the manifest file name value.</summary>
+        /// <summary>OASIS manifest file name under <see cref="MetaFolderName"/>.</summary>
         internal const string ManifestFileName = "manifest.xml";
 
         /// <summary>ZIP entry path <c>META-INF/manifest.xml</c> (ASiC-E).</summary>
         internal const string ManifestZipEntryPath = MetaFolderName + "/" + ManifestFileName;
 
-        /// <summary>Defines the meta inf slash value.</summary>
+        /// <summary>Prefix for entries under <see cref="MetaFolderName"/> (<c>META-INF/</c>).</summary>
         internal const string MetaInfSlash = MetaFolderName + "/";
 
-        /// <summary>Stores the data files.</summary>
         private readonly List<DataFile> _dataFiles = new List<DataFile>();
-        /// <summary>Stores the signatures.</summary>
         private readonly List<ISignature> _signatures = new List<ISignature>();
-        /// <summary>Stores the signatures view.</summary>
         private ReadOnlyCollection<ISignature>? _signaturesView;
 
         /// <summary>Empty container for building a new package.</summary>
@@ -51,11 +48,9 @@ namespace eDocLib.Asic.Container {
             Load(stream, payloadMemoryThresholdBytes, payloadSpillTempDirectory);
         }
 
-        /// <summary>Stores the data files.</summary>
         /// <inheritdoc />
         public IReadOnlyCollection<IDataFile> DataFiles => _dataFiles;
 
-        /// <summary>Stores the signatures.</summary>
         /// <inheritdoc />
         public IReadOnlyCollection<ISignature> Signatures => _signaturesView ??= _signatures.AsReadOnly();
 
@@ -164,7 +159,6 @@ namespace eDocLib.Asic.Container {
             return true;
         }
 
-        /// <summary>Attempts to resolve a signature by ID.</summary>
         /// <inheritdoc />
         public bool TryResolveSignature(string signatureId, [NotNullWhen(true)] out ISignature? signature)
         {
@@ -179,7 +173,6 @@ namespace eDocLib.Asic.Container {
             return true;
         }
 
-        /// <summary>Returns the index of of signature.</summary>
         private int IndexOfSignature(string signatureId)
         {
             if (string.IsNullOrEmpty(signatureId))

@@ -28,7 +28,7 @@ namespace eDocLib
         /// <summary>Gets the name.</summary>
         public string Name { get; }
 
-        /// <summary>Gets or sets the mime type.</summary>
+        /// <summary>Declared media type; set at construction or by the container when known.</summary>
         public string MimeType { get; internal set; }
 
         /// <summary>

@@ -60,7 +60,6 @@ internal static class TrustedListQualificationResolver
         return qualification;
     }
 
-    /// <summary>Copies service fields from the history snapshot.</summary>
     private static TrustedListQualification WithServiceFieldsFromHistorySnapshot(
         TrustedListQualification original,
         TrustedListServiceHistorySnapshot row)

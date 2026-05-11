@@ -12,9 +12,7 @@ namespace eDocLib.Timestamp;
 /// </summary>
 public sealed class TimestampResponderRegistry
 {
-    /// <summary>Stores the by end entity thumbprint.</summary>
     private readonly ConcurrentDictionary<string, Uri> _byEndEntityThumbprint = new(StringComparer.OrdinalIgnoreCase);
-    /// <summary>Stores the by issuer thumbprint.</summary>
     private readonly ConcurrentDictionary<string, Uri> _byIssuerThumbprint = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Registers a TSA URL for the given end-entity (leaf signer) certificate thumbprint.</summary>
@@ -119,7 +117,6 @@ public sealed class TimestampResponderRegistry
         return provider;
     }
 
-    /// <summary>Attempts to get issuer thumbprint.</summary>
     private static bool TryGetIssuerThumbprint(X509Certificate2 leaf, out string normalizedIssuerThumbprint)
     {
         normalizedIssuerThumbprint = string.Empty;

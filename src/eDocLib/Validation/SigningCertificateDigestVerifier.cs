@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Security.Cryptography.Xml;
 using System.Xml;
+using eDocLib;
 using eDocLib.Asic.Xades;
 
 namespace eDocLib.Validation;
@@ -94,7 +95,6 @@ internal static class SigningCertificateDigestVerifier
         return false;
     }
 
-    /// <summary>Attempts to match cert element.</summary>
     private static bool TryMatchCertElement(
         XmlElement certEl,
         X509Certificate2 signingCertificate,
@@ -134,12 +134,7 @@ internal static class SigningCertificateDigestVerifier
             return false;
         }
 
-        byte[] expectedDigest;
-        try
-        {
-            expectedDigest = Convert.FromBase64String(digestValue.InnerText.Trim());
-        }
-        catch (FormatException)
+        if (!Base64Bytes.TryFromBase64Trimmed(digestValue.InnerText, out var expectedDigest))
         {
             error = "SigningCertificate CertDigest DigestValue is not valid Base64.";
             return false;
@@ -206,7 +201,7 @@ internal static class SigningCertificateDigestVerifier
         return fromXml == fromCert;
     }
 
-    /// <summary>Returns whether suer matches.</summary>
+    /// <summary>Returns whether the XML issuer DN matches the certificate issuer.</summary>
     private static bool IssuerMatches(X509Certificate2 cert, string issuerFromXml)
     {
         try

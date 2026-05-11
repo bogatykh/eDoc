@@ -11,7 +11,6 @@ namespace eDocLib.Asic.Xades;
 /// </summary>
 public sealed class XadesBesPreparedSignature
 {
-    /// <summary>Stores the normalized dom.</summary>
     private readonly XmlDocument _normalizedDom;
 
     /// <summary>Initializes a new XAdES BES prepared signature instance.</summary>

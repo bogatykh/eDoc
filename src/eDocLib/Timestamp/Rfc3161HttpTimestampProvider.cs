@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
+using eDocLib;
 using Org.BouncyCastle.Asn1;
 using Org.BouncyCastle.Math;
 using Org.BouncyCastle.Tsp;
@@ -11,12 +12,8 @@ namespace eDocLib.Timestamp;
 /// </summary>
 public sealed class Rfc3161HttpTimestampProvider : ITimestampProvider, IDisposable
 {
-    /// <summary>Stores the HTTP.</summary>
-    private readonly HttpClient _http;
-    /// <summary>Stores the endpoint.</summary>
+    private readonly HttpClientOwnership.HttpClientLease _http;
     private readonly Uri _endpoint;
-    /// <summary>Stores the owned client (disposed by <see cref="Dispose"/> when this instance created the client).</summary>
-    private readonly IDisposable? _ownedClient;
 
     /// <summary>Initializes a new RFC 3161 HTTP timestamp provider instance.</summary>
     /// <param name="tspEndpoint">Timestamp service endpoint that accepts RFC 3161 timestamp queries.</param>
@@ -24,7 +21,7 @@ public sealed class Rfc3161HttpTimestampProvider : ITimestampProvider, IDisposab
     public Rfc3161HttpTimestampProvider(Uri tspEndpoint, HttpClient? httpClient = null)
     {
         _endpoint = tspEndpoint ?? throw new ArgumentNullException(nameof(tspEndpoint));
-        (_http, _ownedClient) = HttpClientOwnership.FromOptional(httpClient);
+        _http = new HttpClientOwnership.HttpClientLease(httpClient);
     }
 
     /// <summary>Requests a timestamp token asynchronously.</summary>
@@ -50,7 +47,7 @@ public sealed class Rfc3161HttpTimestampProvider : ITimestampProvider, IDisposab
         using var content = new ByteArrayContent(request.GetEncoded());
         content.Headers.ContentType = new MediaTypeHeaderValue("application/timestamp-query");
 
-        using var response = await _http.PostAsync(_endpoint, content, cancellationToken).ConfigureAwait(false);
+        using var response = await _http.Client.PostAsync(_endpoint, content, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
 
         var body = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
@@ -67,8 +64,5 @@ public sealed class Rfc3161HttpTimestampProvider : ITimestampProvider, IDisposab
     }
 
     /// <summary>Disposes the internally created HTTP client, if any.</summary>
-    public void Dispose()
-    {
-        _ownedClient?.Dispose();
-    }
+    public void Dispose() => _http.Dispose();
 }

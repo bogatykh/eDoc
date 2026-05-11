@@ -11,7 +11,6 @@ namespace eDocLib;
 /// </summary>
 public sealed class EdocArchiveSigningJob
 {
-    /// <summary>Stores the edoc.</summary>
     private readonly Edoc _edoc;
 
     /// <summary>Initializes a new eDoc archive signing job instance.</summary>

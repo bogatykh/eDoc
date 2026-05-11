@@ -10,6 +10,15 @@
 
 ---
 
+## API evolution (pre-stability)
+
+**eDocLib is under active development.** Until we ship a **1.0** release with an explicit stability statement, **the public API may change between versions**, including **breaking** changes to types, members, defaults, and validation behaviour, as we tighten alignment with published specs and real-world documents.
+
+- **Downstream apps** should **pin** a **Git commit** or an **exact** package / pre-release **version**; avoid floating `*` ranges.
+- **After 1.0**, we plan to treat **SemVer** as the contract for the documented public surface, with any intentional breaks called out in release notes.
+
+---
+
 ## Capabilities
 
 ### ASiC-E container

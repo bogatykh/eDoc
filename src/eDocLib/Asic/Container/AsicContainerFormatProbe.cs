@@ -13,7 +13,6 @@ internal static class AsicContainerFormatProbe
     /// <summary>How many non-directory ZIP entries to scan after <c>mimetype</c> when looking for <c>META-INF/manifest.xml</c>.</summary>
     public const int DefaultMaxZipEntriesToScan = 96;
 
-    /// <summary>Attempts to detect an ASiC-E container.</summary>
     /// <inheritdoc cref="TryDetectAsicE(System.IO.Stream,int,out AsicEProbeResult)"/>
     public static bool TryDetectAsicE(Stream stream, out AsicEProbeResult result) =>
         TryDetectAsicE(stream, DefaultMaxZipEntriesToScan, out result);

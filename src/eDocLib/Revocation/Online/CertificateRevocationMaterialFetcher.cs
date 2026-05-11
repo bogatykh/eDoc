@@ -41,7 +41,7 @@ internal static class CertificateRevocationMaterialFetcher
             throw new ArgumentOutOfRangeException(nameof(maxResponseBytes));
         }
 
-        var ocsp = new List<byte[]>();
+        var ocsp = new List<byte[]>(1);
         if (X509RevocationUriDiscovery.TryGetOcspHttpUri(endEntity, out var ocspUri) && ocspUri is not null)
         {
             if (!RevocationFetchUriPolicy.IsAllowed(ocspUri, rejectLiteralPrivateAndLoopbackHosts, out var ocspUriErr))
@@ -120,7 +120,7 @@ internal static class CertificateRevocationMaterialFetcher
         bool fetchDeltaCrlViaFreshestCdp,
         CancellationToken cancellationToken)
     {
-        var crls = new List<byte[]>();
+        var crls = new List<byte[]>(4);
         foreach (var crlUri in X509RevocationUriDiscovery.GetCrlHttpUris(endEntity))
         {
             if (!RevocationFetchUriPolicy.IsAllowed(crlUri, rejectLiteralPrivateAndLoopbackHosts, out var crlUriErr))

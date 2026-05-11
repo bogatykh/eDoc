@@ -13,9 +13,7 @@ namespace eDocLib.Validation.Reporting;
 /// </summary>
 internal sealed class DictionaryValidationReportLocalizer : IValidationReportLocalizer
 {
-    /// <summary>Stores the fallback.</summary>
     private readonly IValidationReportLocalizer _fallback;
-    /// <summary>Stores the overrides.</summary>
     private readonly IReadOnlyDictionary<string, string> _overrides;
 
     /// <summary>Initializes a new dictionary validation report localizer instance.</summary>
@@ -33,7 +31,7 @@ internal sealed class DictionaryValidationReportLocalizer : IValidationReportLoc
     /// <summary>Override map passed at construction.</summary>
     public IReadOnlyDictionary<string, string> Overrides => _overrides;
 
-    /// <summary>Stores the culture.</summary>
+    /// <inheritdoc />
     public CultureInfo? Culture => _fallback.Culture;
 
     /// <summary>Returns the validation indication text.</summary>

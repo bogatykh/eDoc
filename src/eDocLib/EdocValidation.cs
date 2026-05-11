@@ -75,11 +75,11 @@ public static class EdocValidation
         };
     }
 
-    /// <summary>Builds validation report.</summary>
+    /// <inheritdoc cref="BuildValidationReport(EdocReadValidationResult, SignatureTrustPolicy, ValidationReportOptions?)"/>
     public static DocumentValidationReport BuildValidationReport(this EdocReadValidationResult result, SignatureTrustPolicy policy) =>
         BuildValidationReport(result, policy, reportOptions: null);
 
-    /// <summary>Builds validation report.</summary>
+    /// <summary>Builds a validation report for the opened container and each signature row.</summary>
     public static DocumentValidationReport BuildValidationReport(
         this EdocReadValidationResult result,
         SignatureTrustPolicy policy,
@@ -90,12 +90,11 @@ public static class EdocValidation
         return ValidationReportFactory.CreateDocumentReport(result, policy, reportOptions);
     }
 
-    /// <summary>Same as the overload on <see cref="EdocReadValidationResult"/> when the aggregate result is only known through <see cref="IEdocContainerValidationResult"/>.</summary>
+    /// <inheritdoc cref="BuildValidationReport(IEdocContainerValidationResult, SignatureTrustPolicy, ValidationReportOptions?)"/>
     public static DocumentValidationReport BuildValidationReport(this IEdocContainerValidationResult result, SignatureTrustPolicy policy) =>
         BuildValidationReport(result, policy, reportOptions: null);
 
-    /// <summary>Builds a validation report.</summary>
-    /// <inheritdoc cref="BuildValidationReport(EdocReadValidationResult, SignatureTrustPolicy, ValidationReportOptions?)"/>
+    /// <summary>Builds a validation report when the outcome is exposed as <see cref="IEdocContainerValidationResult"/>.</summary>
     public static DocumentValidationReport BuildValidationReport(
         this IEdocContainerValidationResult result,
         SignatureTrustPolicy policy,
@@ -111,23 +110,18 @@ public static class EdocValidation
 /// <summary>Outcome of <see cref="Edoc.OpenAndValidateAsync(eDocLib.Configuration.EdocLibConfig, System.IO.Stream, eDocLib.Validation.SignatureTrustPolicy?, System.Threading.CancellationToken)"/>.</summary>
 public sealed class EdocReadValidationResult : IEdocContainerValidationResult
 {
-    /// <summary>Gets or sets the eDoc.</summary>
     /// <inheritdoc />
     public required Edoc Edoc { get; init; }
 
-    /// <summary>Gets or sets the signatures.</summary>
     /// <inheritdoc />
     public required IReadOnlyList<EdocSignatureVerification> Signatures { get; init; }
 
-    /// <summary>Stores the has signatures.</summary>
     /// <inheritdoc />
     public bool HasSignatures => Signatures.Count > 0;
 
-    /// <summary>Stores the all signatures valid.</summary>
     /// <inheritdoc />
     public bool AllSignaturesValid => HasSignatures && Signatures.All(s => s.Result.Success);
 
-    /// <summary>Stores the has warnings.</summary>
     /// <inheritdoc />
     public bool HasWarnings =>
         Signatures.Any(static s =>

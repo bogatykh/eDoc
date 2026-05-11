@@ -56,6 +56,19 @@ internal static class X509ChainBuildHelpers
     }
 
     /// <summary>
+    /// Applies <see cref="ApplyExtraStore"/> then <see cref="ApplyTrustAnchors"/> (typical PKIX <c>ExtraStore</c> + custom roots).
+    /// </summary>
+    public static void ApplyExtraStoreAndTrustAnchors(
+        X509ChainPolicy policy,
+        IEnumerable<X509Certificate2>? extras,
+        IEnumerable<X509Certificate2>? anchors)
+    {
+        ArgumentNullException.ThrowIfNull(policy);
+        ApplyExtraStore(policy, extras);
+        ApplyTrustAnchors(policy, anchors);
+    }
+
+    /// <summary>
     /// Joins trimmed <see cref="X509ChainStatus.StatusInformation"/> with <c>"; "</c>, or returns
     /// <c>"Unknown chain error."</c> when no entries are present.
     /// </summary>

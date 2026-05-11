@@ -11,7 +11,7 @@ namespace eDocLib.Revocation.Protocols.Ocsp;
 /// <summary>Delegates to <see cref="BasicOcspResp.Verify"/>; parsing uses <see cref="OcspResponseInternals"/>.</summary>
 internal static class OcspResponseSignatureVerifier
 {
-    /// <summary>Attempts to verify basic signature.</summary>
+    /// <summary>Verifies <see cref="BasicOcspResp"/> signature using <paramref name="responderCertificate"/>.</summary>
     public static bool TryVerifyBasicSignature(
         byte[] ocspResponseDer,
         X509Certificate2 responderCertificate,

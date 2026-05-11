@@ -24,27 +24,7 @@ internal static class EuLotlPointerLocator
     public static IReadOnlyList<EuLotlNationalPointer> EnumerateNationalPointers(Stream euLotlXml)
     {
         ArgumentNullException.ThrowIfNull(euLotlXml);
-        var doc = XDocument.Load(euLotlXml, LoadOptions.PreserveWhitespace);
-        var list = new List<EuLotlNationalPointer>();
-        foreach (var pointer in doc.Descendants(TslNs + "OtherTSLPointer"))
-        {
-            var schemeTerritory = pointer
-                .Elements(TslNs + "AdditionalInformation")
-                .Elements(TslNs + "OtherInformation")
-                .Elements(TslNs + "SchemeTerritory")
-                .Select(e => e.Value.Trim())
-                .FirstOrDefault();
-
-            var loc = pointer.Element(TslNs + "TSLLocation")?.Value.Trim();
-            if (string.IsNullOrEmpty(schemeTerritory) || string.IsNullOrEmpty(loc))
-            {
-                continue;
-            }
-
-            list.Add(new EuLotlNationalPointer(schemeTerritory, loc));
-        }
-
-        return list;
+        return EnumerateNationalPointersCore(euLotlXml).ToList();
     }
 
     /// <summary>
@@ -63,17 +43,37 @@ internal static class EuLotlPointerLocator
         if (t.Length != 2)
             return false;
 
-        foreach (var row in EnumerateNationalPointers(euLotlXml))
+        foreach (var row in EnumerateNationalPointersCore(euLotlXml))
         {
-            if (!string.Equals(row.SchemeTerritory, t, StringComparison.Ordinal))
+            if (string.Equals(row.SchemeTerritory, t, StringComparison.Ordinal))
+            {
+                tslLocation = row.TsLocation;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static IEnumerable<EuLotlNationalPointer> EnumerateNationalPointersCore(Stream euLotlXml)
+    {
+        var doc = XDocument.Load(euLotlXml, LoadOptions.PreserveWhitespace);
+        foreach (var pointer in doc.Descendants(TslNs + "OtherTSLPointer"))
+        {
+            var schemeTerritory = pointer
+                .Elements(TslNs + "AdditionalInformation")
+                .Elements(TslNs + "OtherInformation")
+                .Elements(TslNs + "SchemeTerritory")
+                .Select(e => e.Value.Trim())
+                .FirstOrDefault();
+
+            var loc = pointer.Element(TslNs + "TSLLocation")?.Value.Trim();
+            if (string.IsNullOrEmpty(schemeTerritory) || string.IsNullOrEmpty(loc))
             {
                 continue;
             }
 
-            tslLocation = row.TsLocation;
-            return true;
+            yield return new EuLotlNationalPointer(schemeTerritory, loc);
         }
-
-        return false;
     }
 }

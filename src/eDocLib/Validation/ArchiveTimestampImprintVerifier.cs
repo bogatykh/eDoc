@@ -33,7 +33,7 @@ internal static class ArchiveTimestampImprintVerifier
         return true;
     }
 
-    /// <summary>Attempts to verify at.</summary>
+    /// <summary>Verifies the archive time-stamp imprint for the token at <paramref name="index"/>.</summary>
     public static bool TryVerifyAt(
         XmlDocument signatureOwnerDocument,
         int index,
@@ -87,12 +87,12 @@ internal static class ArchiveTimestampImprintVerifier
     {
         var nsm = XadesXmlNamespaces.ForXades(doc.NameTable);
         var nodes = doc.SelectNodes("//xades:ArchiveTimeStamp", nsm);
-        var list = new List<XmlElement>();
         if (nodes is null)
         {
-            return list;
+            return [];
         }
 
+        var list = new List<XmlElement>(nodes.Count);
         foreach (XmlNode n in nodes)
         {
             if (n is XmlElement el)

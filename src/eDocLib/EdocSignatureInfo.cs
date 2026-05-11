@@ -6,7 +6,6 @@ namespace eDocLib;
 /// <summary>Read-only view over a detached <see cref="XadesSignature"/> stored in a package.</summary>
 public sealed class EdocSignatureInfo
 {
-    /// <summary>Stores the signature.</summary>
     private readonly XadesSignature _signature;
 
     /// <summary>Initializes a new eDoc signature info instance.</summary>
@@ -26,23 +25,18 @@ public sealed class EdocSignatureInfo
         return new EdocSignatureInfo(xs);
     }
 
-    /// <summary>Stores the ID.</summary>
     /// <inheritdoc cref="ISignature.Id"/>
     public string Id => _signature.Id;
 
-    /// <summary>Stores the signature method.</summary>
     /// <inheritdoc cref="ISignature.SignatureMethod"/>
     public string SignatureMethod => _signature.SignatureMethod;
 
-    /// <summary>Stores the signing certificate.</summary>
     /// <inheritdoc cref="ISignature.SigningCertificate"/>
     public X509Certificate? SigningCertificate => _signature.SigningCertificate;
 
-    /// <summary>Stores the signer roles.</summary>
     /// <inheritdoc cref="ISignature.SignerRoles"/>
     public IReadOnlyCollection<string> SignerRoles => _signature.SignerRoles;
 
-    /// <summary>Stores the signature production place.</summary>
     /// <inheritdoc cref="ISignature.SignatureProductionPlace"/>
     public SignatureProductionPlace? SignatureProductionPlace => _signature.SignatureProductionPlace;
 

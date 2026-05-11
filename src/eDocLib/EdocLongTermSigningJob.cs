@@ -12,7 +12,6 @@ namespace eDocLib;
 /// </summary>
 public sealed class EdocLongTermSigningJob
 {
-    /// <summary>Stores the edoc.</summary>
     private readonly Edoc _edoc;
 
     /// <summary>Initializes a new eDoc long term signing job instance.</summary>
@@ -131,11 +130,8 @@ public sealed class EdocLongTermSigningJob
     /// <summary>Applies long term material.</summary>
     private void ApplyLongTermMaterial(AsicSignature sig)
     {
-        var chain = new List<X509Certificate2> { SigningCertificate };
-        foreach (var c in CaCertificatesToEmbed)
-        {
-            chain.Add(c);
-        }
+        var chain = new List<X509Certificate2>(1 + CaCertificatesToEmbed.Count) { SigningCertificate };
+        chain.AddRange(CaCertificatesToEmbed);
 
         XadesBesSigner.AppendUnsignedLongTermMaterial(
             sig,

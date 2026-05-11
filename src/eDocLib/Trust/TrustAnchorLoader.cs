@@ -14,7 +14,7 @@ public static class TrustAnchorLoader
         return coll;
     }
 
-    /// <summary>Creates a value from pem file.</summary>
+    /// <summary>Loads PEM-encoded certificates from a file (one or more <c>BEGIN CERTIFICATE</c> blocks).</summary>
     public static X509Certificate2Collection FromPemFile(string path)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
@@ -88,7 +88,6 @@ public static class TrustAnchorLoader
         return coll;
     }
 
-    /// <summary>Attempts to add certificate.</summary>
     private static void TryAddCertificate(Org.BouncyCastle.X509.X509Certificate? bc, X509Certificate2Collection coll, HashSet<string> seenThumbprints)
     {
         if (bc is null)

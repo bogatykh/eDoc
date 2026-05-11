@@ -50,8 +50,9 @@ internal static class X509RevocationUriDiscovery
             return [];
         }
 
-        var list = new List<string>();
-        foreach (var ad in aia.GetAccessDescriptions())
+        var accessDescriptions = aia.GetAccessDescriptions();
+        var list = new List<string>(accessDescriptions.Length);
+        foreach (var ad in accessDescriptions)
         {
             if (!string.Equals(ad.AccessMethod.Id, OcspAccessMethodOid, StringComparison.Ordinal))
             {
@@ -149,8 +150,9 @@ internal static class X509RevocationUriDiscovery
             return [];
         }
 
-        var uris = new List<Uri>();
-        foreach (DistributionPoint dp in cdp.GetDistributionPoints())
+        var distributionPoints = cdp.GetDistributionPoints();
+        var uris = new List<Uri>(Math.Max(4, distributionPoints.Length * 2));
+        foreach (DistributionPoint dp in distributionPoints)
         {
             var dpn = dp.DistributionPointName;
             if (dpn == null || dpn.Type != DistributionPointName.FullName)

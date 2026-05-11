@@ -11,7 +11,6 @@ namespace eDocLib;
 /// </summary>
 internal sealed class RawXmlSignature : ISignature
 {
-    /// <summary>Stores the document.</summary>
     private readonly XmlDocument _document;
 
     /// <summary>Initializes a new raw XML signature instance.</summary>
@@ -20,7 +19,6 @@ internal sealed class RawXmlSignature : ISignature
         _document = document ?? throw new ArgumentNullException(nameof(document));
     }
 
-    /// <summary>Stores the ID.</summary>
     public string Id => _document.DocumentElement?.GetAttribute("Id") ?? string.Empty;
 
     public string SignatureMethod
@@ -33,16 +31,12 @@ internal sealed class RawXmlSignature : ISignature
         }
     }
 
-    /// <summary>Stores the signing certificate.</summary>
     public X509Certificate? SigningCertificate => null;
 
-    /// <summary>Stores the signer roles.</summary>
     public IReadOnlyCollection<string> SignerRoles => [];
 
-    /// <summary>Stores the signature production place.</summary>
     public SignatureProductionPlace? SignatureProductionPlace => null;
 
-    /// <summary>Writes to.</summary>
     public void WriteTo(Stream stream)
     {
         var settings = new XmlWriterSettings

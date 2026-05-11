@@ -29,7 +29,6 @@ internal static partial class XadesBesSigner
         }
     }
 
-    /// <summary>Finds or create child.</summary>
     private static XmlElement FindOrCreateChild(XmlDocument doc, XmlElement parent, string localName, string ns)
     {
         foreach (XmlNode n in parent.ChildNodes)

@@ -25,25 +25,9 @@ public sealed class TslQualificationMappingOptions
         static string[]? Union(IReadOnlyCollection<string>? a, IReadOnlyCollection<string>? b)
         {
             var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            Add(a);
-            Add(b);
+            TslQualificationUriSets.AddTrimmedNonEmpty(a, set);
+            TslQualificationUriSets.AddTrimmedNonEmpty(b, set);
             return set.Count == 0 ? null : set.ToArray();
-
-            void Add(IReadOnlyCollection<string>? c)
-            {
-                if (c is null)
-                {
-                    return;
-                }
-
-                foreach (var s in c)
-                {
-                    if (!string.IsNullOrWhiteSpace(s))
-                    {
-                        set.Add(s.Trim());
-                    }
-                }
-            }
         }
 
         return new TslQualificationMappingOptions

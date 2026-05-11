@@ -14,4 +14,17 @@ internal static class HttpClientOwnership
         var created = new HttpClient();
         return (created, created);
     }
+
+    /// <summary>Optional caller-supplied <see cref="HttpClient"/> with explicit ownership for <see cref="IDisposable.Dispose"/>.</summary>
+    internal sealed class HttpClientLease : IDisposable
+    {
+        public HttpClient Client { get; }
+
+        private readonly IDisposable? _ownedDisposable;
+
+        public HttpClientLease(HttpClient? httpClient) =>
+            (Client, _ownedDisposable) = FromOptional(httpClient);
+
+        public void Dispose() => _ownedDisposable?.Dispose();
+    }
 }

@@ -21,7 +21,6 @@ public sealed record TrustedListDocumentMetadata
     /// <summary>Scheduled next update instant when parseable (often under <c>NextUpdate</c>).</summary>
     public DateTimeOffset? NextUpdate { get; init; }
 
-    /// <summary>ETSI TSL namespace alias.</summary>
     private static readonly XNamespace TslNs = TslXmlNamespace.Tsl;
 
     /// <summary>Parses scheme-level metadata when <c>SchemeInformation</c> exists.</summary>
@@ -59,7 +58,6 @@ public sealed record TrustedListDocumentMetadata
         };
     }
 
-    /// <summary>Parses next update.</summary>
     private static DateTimeOffset? ParseNextUpdate(XElement? nextEl)
     {
         if (nextEl is null)
@@ -71,6 +69,5 @@ public sealed record TrustedListDocumentMetadata
         return ParseDateTimeElement(inner ?? nextEl);
     }
 
-    /// <summary>Parses date time element.</summary>
     private static DateTimeOffset? ParseDateTimeElement(XElement? el) => TslXmlText.TryParseUtcDateTime(el);
 }

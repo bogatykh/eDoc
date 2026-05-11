@@ -1,4 +1,7 @@
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
+using eDocLib;
 using System.Text;
 using System.Xml;
 using System.Xml.Linq;
@@ -60,6 +63,28 @@ internal static class TslXmlText
             return XmlConvert.ToDateTimeOffset(v);
         }
         catch (FormatException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Decodes a TSL <c>X509Certificate</c> element body: collapses Base64 whitespace, DER-decodes, constructs
+    /// <see cref="X509Certificate2"/>. Returns <c>null</c> on empty/invalid Base64 or unreadable DER.
+    /// </summary>
+    public static X509Certificate2? TryReadX509DerCertificate(string elementText)
+    {
+        var text = CollapseBase64Whitespace(elementText);
+        if (!Base64Bytes.TryDecode(text, out var raw))
+        {
+            return null;
+        }
+
+        try
+        {
+            return new X509Certificate2(raw);
+        }
+        catch (CryptographicException)
         {
             return null;
         }

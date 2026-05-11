@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Security.Cryptography.Xml;
@@ -10,9 +11,9 @@ namespace eDocLib.Validation;
 /// <summary>
 /// Verifies detached XML-DSig + XAdES-BES style signatures produced by <see cref="XadesBesSigner"/> (RSA-SHA256 / RSA-SHA384, ECDSA).
 /// </summary>
-internal static class DetachedSignatureVerifier
+internal static partial class DetachedSignatureVerifier
 {
-    /// <summary>Attempts to verify reference digests.</summary>
+    /// <summary>Verifies each <c>ds:Reference</c> digest against the in-memory payload map.</summary>
     public static bool TryVerifyReferenceDigests(
         XadesSignature signature,
         IReadOnlyDictionary<string, byte[]> payloadByRelativeUri,
@@ -22,9 +23,7 @@ internal static class DetachedSignatureVerifier
             new InMemoryPayloadSource(payloadByRelativeUri ?? throw new ArgumentNullException(nameof(payloadByRelativeUri))),
             out error);
 
-    /// <summary>
-    /// Attempts to verify reference digests using the streaming payload abstraction.
-    /// </summary>
+    /// <summary>Verifies each <c>ds:Reference</c> digest using the streaming payload source.</summary>
     /// <remarks>
     /// References without an XML transform chain hash the payload incrementally from the source stream, so the
     /// entire payload never has to be present in a single byte buffer. References with transforms still buffer
@@ -39,32 +38,12 @@ internal static class DetachedSignatureVerifier
         ArgumentNullException.ThrowIfNull(signature);
         ArgumentNullException.ThrowIfNull(payloadSource);
 
-        error = null;
-        var signedXml = signature.SignedXmlCore;
-        var sigEl = signedXml.GetXml() ?? throw new CryptographicException("Signature element is missing.");
-        if (sigEl.OwnerDocument == null)
+        if (!TryGetSignatureXmlContext(signature, out var signedXml, out var doc, out _, out error))
         {
-            error = "Signature element is missing.";
             return false;
         }
 
-        var doc = sigEl.OwnerDocument;
-
-        if (signedXml.SignedInfo == null)
-        {
-            error = "SignedInfo is missing.";
-            return false;
-        }
-
-        foreach (Reference reference in signedXml.SignedInfo.References.Cast<Reference>())
-        {
-            if (!TryVerifyReference(reference, doc, payloadSource, out error))
-            {
-                return false;
-            }
-        }
-
-        return true;
+        return TryVerifyAllReferences(signedXml, doc, payloadSource, out error);
     }
 
     /// <summary>
@@ -95,24 +74,12 @@ internal static class DetachedSignatureVerifier
         ArgumentNullException.ThrowIfNull(signature);
         ArgumentNullException.ThrowIfNull(payloadSource);
 
-        error = null;
-        var signedXml = signature.SignedXmlCore;
-        var sigEl = signedXml.GetXml() ?? throw new CryptographicException("Signature element is missing.");
-        if (sigEl.OwnerDocument == null)
+        if (!TryGetSignatureXmlContext(signature, out var signedXml, out var doc, out var sigEl, out error))
         {
-            error = "Signature element is missing.";
             return false;
         }
 
-        var doc = sigEl.OwnerDocument;
-
-        if (signedXml.SignedInfo == null)
-        {
-            error = "SignedInfo is missing.";
-            return false;
-        }
-
-        if (!TryVerifyReferenceDigests(signature, payloadSource, out error))
+        if (!TryVerifyAllReferences(signedXml, doc, payloadSource, out error))
         {
             return false;
         }
@@ -152,6 +119,52 @@ internal static class DetachedSignatureVerifier
 
         error = $"Unsupported SignatureMethod: {method}";
         return false;
+    }
+
+    /// <summary>Loads <see cref="SignedXml"/> / DOM for the signature and ensures <see cref="SignedXml.SignedInfo"/> exists.</summary>
+    private static bool TryGetSignatureXmlContext(
+        XadesSignature signature,
+        out SignedXml signedXml,
+        out XmlDocument doc,
+        out XmlElement sigEl,
+        out string? error)
+    {
+        signedXml = signature.SignedXmlCore;
+        sigEl = signedXml.GetXml() ?? throw new CryptographicException("Signature element is missing.");
+        if (sigEl.OwnerDocument == null)
+        {
+            doc = null!;
+            error = "Signature element is missing.";
+            return false;
+        }
+
+        doc = sigEl.OwnerDocument;
+        if (signedXml.SignedInfo == null)
+        {
+            error = "SignedInfo is missing.";
+            return false;
+        }
+
+        error = null;
+        return true;
+    }
+
+    private static bool TryVerifyAllReferences(
+        SignedXml signedXml,
+        XmlDocument doc,
+        IValidationPayloadSource payloadSource,
+        out string? error)
+    {
+        foreach (Reference reference in signedXml.SignedInfo!.References.Cast<Reference>())
+        {
+            if (!TryVerifyReference(reference, doc, payloadSource, out error))
+            {
+                return false;
+            }
+        }
+
+        error = null;
+        return true;
     }
 
     /// <summary>Maps an RSA <c>ds:SignatureMethod</c> URI to its <see cref="HashAlgorithmName"/>.</summary>
@@ -255,242 +268,5 @@ internal static class DetachedSignatureVerifier
         }
 
         return TryVerify(xs, payloadByRelativeUri, out error, trustPolicy);
-    }
-
-    /// <summary>
-    /// Attempts to verify a single <c>ds:Reference</c> against the supplied payload source.
-    /// </summary>
-    /// <remarks>
-    /// Hashes the payload incrementally from the stream when the reference has no XML transform chain;
-    /// for references with transforms, buffers the payload (the transform API requires an in-memory representation).
-    /// </remarks>
-    private static bool TryVerifyReference(
-        Reference reference,
-        XmlDocument document,
-        IValidationPayloadSource payloadSource,
-        out string? error)
-    {
-        error = null;
-        var uri = reference.Uri ?? string.Empty;
-
-        using var hashAlg = CreateHashAlgorithm(reference.DigestMethod);
-        var expected = GetDigestBytes(reference);
-
-        byte[] actual;
-        if (uri.StartsWith("#", StringComparison.Ordinal))
-        {
-            var id = uri[1..];
-            var target = FindElementById(document, id);
-            if (target == null)
-            {
-                error = $"Could not resolve reference URI '{uri}'.";
-                return false;
-            }
-
-            var bytes = ApplyTransforms(reference, target);
-            actual = hashAlg.ComputeHash(bytes);
-        }
-        else
-        {
-            if (!payloadSource.TryOpen(uri, out var payloadStream))
-            {
-                error = $"Missing payload for reference URI '{uri}'.";
-                return false;
-            }
-
-            if (reference.TransformChain.Count == 0)
-            {
-                actual = hashAlg.ComputeHash(payloadStream);
-            }
-            else
-            {
-                var buffered = ReadAllBytes(payloadStream);
-                var transformed = ApplyTransforms(reference, buffered);
-                actual = hashAlg.ComputeHash(transformed);
-            }
-        }
-
-        if (!CryptographicOperations.FixedTimeEquals(actual, expected))
-        {
-            error = $"Digest mismatch for reference URI '{uri}'.";
-            return false;
-        }
-
-        return true;
-    }
-
-    private static byte[] ReadAllBytes(Stream stream)
-    {
-        if (stream is MemoryStream ms && ms.TryGetBuffer(out var seg) && seg.Offset == 0 && seg.Count == ms.Length)
-        {
-            return seg.Array!.Length == seg.Count ? seg.Array! : ms.ToArray();
-        }
-
-        using var copy = new MemoryStream();
-        stream.CopyTo(copy);
-        return copy.ToArray();
-    }
-
-    /// <summary>Applies transforms.</summary>
-    private static byte[] ApplyTransforms(Reference reference, XmlElement element)
-    {
-        if (reference.TransformChain.Count == 0)
-        {
-            return CanonicalizeElementExcC14N(element);
-        }
-
-        var current = (object)WrapInOwnDocument(element);
-        foreach (Transform transform in reference.TransformChain)
-        {
-            transform.LoadInput(current);
-            current = transform.GetOutput(typeof(Stream)) ?? transform.GetOutput(typeof(XmlDocument))!;
-            if (current is Stream s)
-            {
-                using var ms = new MemoryStream();
-                s.CopyTo(ms);
-                current = ms.ToArray();
-            }
-        }
-
-        return current switch
-        {
-            byte[] b => b,
-            XmlDocument d => CanonicalizeElementExcC14N(d.DocumentElement!),
-            XmlElement e => CanonicalizeElementExcC14N(e),
-            _ => throw new NotSupportedException("Transform output type is not supported."),
-        };
-    }
-
-    /// <summary>Applies transforms.</summary>
-    private static byte[] ApplyTransforms(Reference reference, byte[] payload)
-    {
-        if (reference.TransformChain.Count == 0)
-        {
-            return payload;
-        }
-
-        object current = payload;
-        foreach (Transform transform in reference.TransformChain)
-        {
-            transform.LoadInput(current);
-            var output = transform.GetOutput(typeof(Stream));
-            if (output is not Stream stream)
-            {
-                throw new NotSupportedException("Transform chain over binary payload must yield a stream.");
-            }
-
-            using var ms = new MemoryStream();
-            stream.CopyTo(ms);
-            current = ms.ToArray();
-        }
-
-        return (byte[])current;
-    }
-
-    /// <summary>Wraps in own document.</summary>
-    private static XmlDocument WrapInOwnDocument(XmlElement element)
-    {
-        var doc = new XmlDocument { PreserveWhitespace = false };
-        doc.AppendChild(doc.ImportNode(element, deep: true));
-        return doc;
-    }
-
-    /// <summary>Returns whether onicalize element exc c 14 n.</summary>
-    private static byte[] CanonicalizeElementExcC14N(XmlElement element)
-    {
-        var transform = new XmlDsigExcC14NTransform();
-        transform.LoadInput(WrapInOwnDocument(element));
-        using var ms = (MemoryStream)transform.GetOutput(typeof(MemoryStream))!;
-        return ms.ToArray();
-    }
-
-    /// <summary>Finds element by ID.</summary>
-    private static XmlElement? FindElementById(XmlDocument doc, string id)
-    {
-        if (doc.DocumentElement == null)
-        {
-            return null;
-        }
-
-        if (TryMatch(doc.DocumentElement))
-        {
-            return doc.DocumentElement;
-        }
-
-        return Walk(doc.DocumentElement);
-
-        XmlElement? Walk(XmlNode node)
-        {
-            foreach (XmlNode child in node.ChildNodes)
-            {
-                if (child is XmlElement el && TryMatch(el))
-                {
-                    return el;
-                }
-
-                if (child is XmlElement el2)
-                {
-                    var found = Walk(el2);
-                    if (found != null)
-                    {
-                        return found;
-                    }
-                }
-            }
-
-            return null;
-        }
-
-        bool TryMatch(XmlElement el)
-        {
-            var attr = el.GetAttributeNode("Id", SignedXml.XmlDsigNamespaceUrl)
-                       ?? el.GetAttributeNode("Id")
-                       ?? el.Attributes?["Id"];
-            return attr != null && attr.Value == id;
-        }
-    }
-
-    /// <summary>Creates hash algorithm.</summary>
-    private static HashAlgorithm CreateHashAlgorithm(string digestMethodUri) =>
-        digestMethodUri switch
-        {
-            SignedXml.XmlDsigSHA256Url => SHA256.Create(),
-            SignedXml.XmlDsigSHA384Url => SHA384.Create(),
-            SignedXml.XmlDsigSHA512Url => SHA512.Create(),
-            SignedXml.XmlDsigSHA1Url => SHA1.Create(),
-            _ => throw new NotSupportedException($"Unsupported DigestMethod: {digestMethodUri}"),
-        };
-
-    /// <summary>Gets signature bytes from dom.</summary>
-    private static byte[] GetSignatureBytesFromDom(XmlDocument document)
-    {
-        if (!SignatureValueReader.TryReadOctets(document, out var octets, out var error))
-        {
-            throw new CryptographicException(error);
-        }
-
-        return octets;
-    }
-
-    /// <summary>Gets digest bytes.</summary>
-    private static byte[] GetDigestBytes(Reference reference)
-    {
-        object? v = reference.DigestValue;
-        if (v == null)
-        {
-            throw new CryptographicException("DigestValue is empty.");
-        }
-
-        if (v is byte[] bytes)
-        {
-            return bytes;
-        }
-
-        if (v is string s)
-        {
-            return Convert.FromBase64String(s);
-        }
-
-        return Convert.FromBase64String(v.ToString() ?? string.Empty);
     }
 }

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Xml;
+using eDocLib;
 
 namespace eDocLib.Asic.Xades;
 
@@ -57,8 +58,34 @@ internal static class XadesUnsignedEmbeddedValues
     public static IReadOnlyList<byte[]> ReadEncapsulatedSignatureTimeStamps(XmlDocument ownerDocument)
     {
         ArgumentNullException.ThrowIfNull(ownerDocument);
-        return ReadBase64ElementsXPath(ownerDocument, "//xades:SignatureTimeStamp/xades:EncapsulatedTimeStamp");
+        return ReadBase64ElementsXPath(ownerDocument, SignatureTimeStampEncapsulatedTimeStampXPath);
     }
+
+    /// <summary>
+    /// Whether the document has at least one decodable <see cref="ReadEncapsulatedSignatureTimeStamps"/> payload (avoids building a list when only presence is needed).
+    /// </summary>
+    public static bool HasEncapsulatedSignatureTimeStamp(XmlDocument ownerDocument)
+    {
+        ArgumentNullException.ThrowIfNull(ownerDocument);
+        var nsm = XadesXmlNamespaces.ForXades(ownerDocument.NameTable);
+        var nodes = ownerDocument.SelectNodes(SignatureTimeStampEncapsulatedTimeStampXPath, nsm);
+        if (nodes is null)
+        {
+            return false;
+        }
+
+        foreach (XmlNode n in nodes)
+        {
+            if (n is XmlElement el && Base64Bytes.TryFromBase64Trimmed(el.InnerText, out _))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private const string SignatureTimeStampEncapsulatedTimeStampXPath = "//xades:SignatureTimeStamp/xades:EncapsulatedTimeStamp";
 
     /// <summary>
     /// <c>xades:EncapsulatedTimeStamp</c> elements that are direct children of <c>xades:ArchiveTimeStamp</c> (DER), document order.
@@ -79,7 +106,7 @@ internal static class XadesUnsignedEmbeddedValues
             return [];
         }
 
-        var list = new List<byte[]>();
+        var list = new List<byte[]>(containers.Count);
         foreach (XmlNode c in containers)
         {
             if (c is not XmlElement container)
@@ -93,7 +120,7 @@ internal static class XadesUnsignedEmbeddedValues
                     && el.LocalName == childLocalName
                     && el.NamespaceURI == XadesSignature.XadesNamespaceUrl)
                 {
-                    if (TryDecodeBase64Der(el.InnerText, out var der))
+                    if (Base64Bytes.TryFromBase64Trimmed(el.InnerText, out var der))
                     {
                         list.Add(der);
                     }
@@ -125,7 +152,7 @@ internal static class XadesUnsignedEmbeddedValues
         var list = new List<byte[]>(nodes.Count);
         foreach (XmlNode n in nodes)
         {
-            if (n is XmlElement el && TryDecodeBase64Der(el.InnerText, out var der))
+            if (n is XmlElement el && Base64Bytes.TryFromBase64Trimmed(el.InnerText, out var der))
             {
                 list.Add(der);
             }
@@ -134,24 +161,4 @@ internal static class XadesUnsignedEmbeddedValues
         return list;
     }
 
-    /// <summary>Attempts to decode base 64 DER.</summary>
-    private static bool TryDecodeBase64Der(string text, out byte[] der)
-    {
-        der = [];
-        var s = text.Trim();
-        if (s.Length == 0)
-        {
-            return false;
-        }
-
-        try
-        {
-            der = Convert.FromBase64String(s);
-            return der.Length > 0;
-        }
-        catch (FormatException)
-        {
-            return false;
-        }
-    }
 }

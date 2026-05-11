@@ -5,7 +5,7 @@ namespace eDocLib.Revocation.Protocols.Ocsp;
 /// <summary>Centralized <see cref="OcspResp"/> / <see cref="BasicOcspResp"/> parsing for internal facades.</summary>
 internal static class OcspResponseInternals
 {
-    /// <summary>Attempts to parse.</summary>
+    /// <summary>Parses DER as <see cref="OcspResp"/>.</summary>
     internal static bool TryParse(byte[] der, out OcspResp? resp, out string? error)
     {
         ArgumentNullException.ThrowIfNull(der);

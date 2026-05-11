@@ -7,7 +7,7 @@ namespace eDocLib.Revocation.Protocols.Crl;
 /// <summary>CRL parsing, issuer signature check, and <see cref="X509Crl.IsRevoked"/> helper.</summary>
 internal static class X509CrlInspector
 {
-    /// <summary>Attempts to parse.</summary>
+    /// <summary>Parses CRL DER into a BouncyCastle <see cref="X509Crl"/>.</summary>
     public static bool TryParse(byte[] crlDer, out X509Crl? crl, out string? error)
     {
         ArgumentNullException.ThrowIfNull(crlDer);

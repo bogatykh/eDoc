@@ -14,7 +14,6 @@ namespace eDocLib.Asic.Xades;
 /// </summary>
 internal static partial class XadesBesSigner
 {
-    /// <summary>Defines the DSig ns value.</summary>
     private const string DsNs = SignedXml.XmlDsigNamespaceUrl;
 
     /// <summary>
@@ -91,7 +90,6 @@ internal static partial class XadesBesSigner
         return (AsicSignature)prep.Complete(signatureBytes);
     }
 
-    /// <summary>Stores the data files.</summary>
     private static List<(string Name, byte[] Payload)> ReadPayloadEntries(IEnumerable<IDataFile> dataFiles)
     {
         return dataFiles.Select(df =>

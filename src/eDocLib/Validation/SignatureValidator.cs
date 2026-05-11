@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
@@ -11,82 +10,12 @@ using eDocLib.Asic.Xades;
 
 namespace eDocLib.Validation;
 
-/// <summary>File-local helpers: derives revocation-report flags for edge-case PKIX paths.</summary>
-file static class RevocationValidationReportExtras
-{
-    /// <summary>Returns whether online revocation fetch was skipped for a self-signed short chain.</summary>
-    internal static bool OnlineFetchSkippedSelfSignedShortChain(
-        SignatureTrustPolicy policy,
-        bool? applicationOnlineRevocationValid,
-        RevocationMaterialFetchResult? onlineFetched) =>
-        policy.UsesApplicationControlledOnlineRevocation
-        && applicationOnlineRevocationValid == true
-        && onlineFetched is null;
-}
-
-/// <summary>File-local helpers: evaluates whether the signer certificate appears in a configured TSL index.</summary>
-file static class SignatureValidatorTrustedList
-{
-    /// <summary>Carries evaluation data.</summary>
-    internal readonly record struct Evaluation(
-        bool Ok,
-        string? Error,
-        bool? Listed,
-        IReadOnlyList<string>? ServiceTypeIds,
-        string? ServiceStatus);
-
-    /// <summary>Evaluates the configured state.</summary>
-    internal static Evaluation Evaluate(SignatureTrustPolicy policy, X509Certificate2? signingCert)
-    {
-        if (policy.TrustedListServiceIndex is null)
-            return new Evaluation(true, null, null, null, null);
-
-        if (signingCert is null)
-        {
-            if (policy.RequireSigningCertificateListedInTrustedList)
-            {
-                return new Evaluation(
-                    false,
-                    "Signing certificate is required for trusted list qualification but was not found in the signature.",
-                    null,
-                    null,
-                    null);
-            }
-
-            return new Evaluation(true, null, null, null, null);
-        }
-
-        if (policy.TrustedListServiceIndex.TryGetQualification(signingCert, out var q))
-        {
-            if (policy.TrustedListQualificationReferenceTimeUtc is { } refUtc)
-            {
-                q = TrustedListQualificationResolver.ResolveEffectiveQualification(q, refUtc);
-            }
-
-            return new Evaluation(true, null, true, q.ServiceTypeIdentifiers, q.ServiceStatusUri);
-        }
-
-        if (policy.RequireSigningCertificateListedInTrustedList)
-        {
-            return new Evaluation(
-                false,
-                "Signing certificate is not listed in the configured trusted service list.",
-                false,
-                null,
-                null);
-        }
-
-        return new Evaluation(true, null, false, null, null);
-    }
-}
-
 /// <summary>
 /// XML-DSig reference digests + RSA (SHA-256 or SHA-384) or ECDSA over <c>SignedInfo</c>, optional <see cref="X509Chain"/> validation,
 /// optional XAdES-T imprint and TSA token checks.
 /// </summary>
-internal static class SignatureValidator
+internal static partial class SignatureValidator
 {
-    /// <summary>Validates using an in-memory payload map (tests and custom callers).</summary>
     public static Task<SignatureValidationResult> ValidateAsync(
         XadesSignature signature,
         IReadOnlyDictionary<string, byte[]> payloadByRelativeUri,
@@ -98,9 +27,6 @@ internal static class SignatureValidator
             policy,
             cancellationToken);
 
-    /// <summary>
-    /// Validates a signature using a streaming payload source.
-    /// </summary>
     internal static async Task<SignatureValidationResult> ValidateAsync(
         XadesSignature signature,
         IValidationPayloadSource payloadSource,
@@ -360,17 +286,14 @@ internal static class SignatureValidator
             };
         }
 
-        using var chain = new X509Chain();
-        chain.ChainPolicy.RevocationFlag = X509RevocationFlag.ExcludeRoot;
-        policy.ApplyRevocationMode(chain.ChainPolicy);
+        using var chain = policy.CreateX509Chain();
 
         if (policy.IncludeUnsignedCertificateValuesInSignerChain)
         {
             AddUnsignedCertificateValuesToExtraStore(signature, chain.ChainPolicy);
         }
 
-        X509ChainBuildHelpers.ApplyExtraStore(chain.ChainPolicy, policy.ExtraChainCertificates);
-        X509ChainBuildHelpers.ApplyTrustAnchors(chain.ChainPolicy, policy.CustomTrustAnchors);
+        policy.ApplySignerChainStores(chain.ChainPolicy);
 
         var chainOk = chain.Build(signingCert);
         var chainDiag = CertificateChainDiagnostics.FromChain(chain);
@@ -508,97 +431,5 @@ internal static class SignatureValidator
                 embeddedArtifactOutcomes,
                 onlineArtifactOutcomes),
         };
-    }
-
-    /// <summary>Adds unsigned certificate values to extra store.</summary>
-    private static void AddUnsignedCertificateValuesToExtraStore(XadesSignature signature, X509ChainPolicy chainPolicy)
-    {
-        foreach (var der in signature.UnsignedEncapsulatedX509Der)
-        {
-            try
-            {
-                chainPolicy.ExtraStore.Add(new X509Certificate2(der));
-            }
-            catch (CryptographicException)
-            {
-            }
-        }
-
-        foreach (var p7 in signature.UnsignedEncapsulatedPkcs7Der)
-        {
-            if (!X509Pkcs7CertificateBag.TryImportCertificates(p7, out var coll))
-            {
-                continue;
-            }
-
-            foreach (X509Certificate2 c in coll)
-            {
-                try
-                {
-                    chainPolicy.ExtraStore.Add(new X509Certificate2(c.RawData));
-                }
-                catch (CryptographicException)
-                {
-                }
-            }
-        }
-    }
-
-    /// <summary>Attempts to validate claimed signer roles.</summary>
-    private static bool TryValidateClaimedSignerRoles(
-        SignatureTrustPolicy policy,
-        XadesSignature signature,
-        out string? error)
-    {
-        error = null;
-        HashSet<string>? allowSet = null;
-        var allow = policy.SignerClaimedRoleAllowList;
-        if (allow is not null && allow.Count > 0)
-        {
-            allowSet = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var s in allow)
-            {
-                if (!string.IsNullOrWhiteSpace(s))
-                {
-                    allowSet.Add(s.Trim());
-                }
-            }
-
-            if (allowSet.Count == 0)
-            {
-                allowSet = null;
-            }
-        }
-
-        var nonEmptyRoles = new List<string>();
-        foreach (var r in signature.SignerRoles)
-        {
-            if (!string.IsNullOrWhiteSpace(r))
-            {
-                nonEmptyRoles.Add(r.Trim());
-            }
-        }
-
-        if (policy.RequireAtLeastOneSignerClaimedRole && nonEmptyRoles.Count == 0)
-        {
-            error = "At least one non-empty xades:ClaimedRole is required.";
-            return false;
-        }
-
-        if (allowSet is null)
-        {
-            return true;
-        }
-
-        foreach (var r in nonEmptyRoles)
-        {
-            if (!allowSet.Contains(r))
-            {
-                error = $"Claimed signer role '{r}' is not allowed by policy.";
-                return false;
-            }
-        }
-
-        return true;
     }
 }

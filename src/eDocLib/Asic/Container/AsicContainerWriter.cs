@@ -12,7 +12,6 @@ namespace eDocLib.Asic.Container {
     /// </summary>
     internal class AsicContainerWriter : IDisposable
     {
-        /// <summary>Stores the ZIP output stream.</summary>
         private readonly ZipOutputStream _zipOutputStream;
 
         /// <summary>Initializes a new ASiC container writer instance.</summary>

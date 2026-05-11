@@ -7,9 +7,7 @@ namespace eDocLib.Trust.Tsl;
 /// </summary>
 public sealed class HttpTslTrustedListProvider : ITrustedListProvider
 {
-    /// <summary>Stores the HTTP.</summary>
     private readonly HttpClient _http;
-    /// <summary>Stores the relay prefix.</summary>
     private readonly string? _relayPrefix;
 
     /// <summary>Initializes a new HTTP TSL trusted list provider instance.</summary>
@@ -27,7 +25,6 @@ public sealed class HttpTslTrustedListProvider : ITrustedListProvider
     /// <summary>Configured relay prefix, if any.</summary>
     public string? TslRelayUriPrefix => _relayPrefix;
 
-    /// <summary>Gets a trusted list stream asynchronously.</summary>
     /// <inheritdoc />
     /// <remarks>
     /// <list type="bullet">
@@ -81,7 +78,6 @@ public sealed class HttpTslTrustedListProvider : ITrustedListProvider
             nameof(territory));
     }
 
-    /// <summary>Fetches to memory async.</summary>
     private async Task<MemoryStream> FetchToMemoryAsync(string targetUrl, CancellationToken cancellationToken)
     {
         var requestUri = _relayPrefix is null ? targetUrl : _relayPrefix + Uri.EscapeDataString(targetUrl);

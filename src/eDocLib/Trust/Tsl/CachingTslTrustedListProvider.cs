@@ -1,4 +1,5 @@
 using System.Threading;
+using eDocLib;
 
 namespace eDocLib.Trust.Tsl;
 
@@ -8,9 +9,7 @@ namespace eDocLib.Trust.Tsl;
 /// </summary>
 public sealed class CachingTslTrustedListProvider : ITrustedListProvider
 {
-    /// <summary>Stores the inner.</summary>
     private readonly ITrustedListProvider _inner;
-    /// <summary>Stores the cache directory.</summary>
     private readonly string _cacheDirectory;
 
     /// <summary>Initializes a new caching TSL trusted list provider instance.</summary>
@@ -35,7 +34,6 @@ public sealed class CachingTslTrustedListProvider : ITrustedListProvider
     /// <summary>Maximum cache age before refetch.</summary>
     public TimeSpan MaxAge { get; }
 
-    /// <summary>Gets a trusted list stream asynchronously.</summary>
     /// <inheritdoc />
     public async Task<Stream> GetTrustedListAsync(string territory, CancellationToken cancellationToken = default)
     {
@@ -53,14 +51,11 @@ public sealed class CachingTslTrustedListProvider : ITrustedListProvider
         await remote.CopyToAsync(buffer, cancellationToken).ConfigureAwait(false);
         var bytes = buffer.ToArray();
 
-        var tmp = path + ".tmp";
-        await File.WriteAllBytesAsync(tmp, bytes, cancellationToken).ConfigureAwait(false);
-        File.Move(tmp, path, overwrite: true);
+        await IoSafe.WriteAllBytesAtomicAsync(path, bytes, cancellationToken).ConfigureAwait(false);
 
         return new MemoryStream(bytes, writable: false);
     }
 
-    /// <summary>Returns whether cache entry fresh.</summary>
     private bool IsCacheEntryFresh(string path)
     {
         if (MaxAge == Timeout.InfiniteTimeSpan)
@@ -77,7 +72,6 @@ public sealed class CachingTslTrustedListProvider : ITrustedListProvider
         return age <= MaxAge;
     }
 
-    /// <summary>Gets cache file path.</summary>
     private string GetCacheFilePath(string territory)
     {
         var hash = CacheFileNames.Sha256HexKey(territory.Trim());

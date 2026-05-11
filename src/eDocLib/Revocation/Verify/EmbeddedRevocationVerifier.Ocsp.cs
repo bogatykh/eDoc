@@ -9,7 +9,7 @@ namespace eDocLib.Revocation.Verify;
 /// <summary>Partial class: OCSP blob verification logic shared by embedded revocation checks.</summary>
 internal static partial class EmbeddedRevocationVerifier
 {
-    /// <summary>Attempts to verify one OCSP.</summary>
+    /// <summary>Verifies one OCSP response DER against the signing certificate and chain.</summary>
     internal static bool TryVerifyOneOcsp(
         byte[] der,
         X509Certificate2 signingCertificate,
@@ -56,7 +56,6 @@ internal static partial class EmbeddedRevocationVerifier
         return OcspShowsSignerGood(der, signingCertificate, chainFromLeaf, out error);
     }
 
-    /// <summary>Attempts to validate responder PKIX chain.</summary>
     private static bool TryValidateResponderPkixChain(
         X509Certificate2 responder,
         EmbeddedRevocationVerificationOptions options,
@@ -66,8 +65,10 @@ internal static partial class EmbeddedRevocationVerifier
         using var chain = new X509Chain();
         chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
 
-        X509ChainBuildHelpers.ApplyExtraStore(chain.ChainPolicy, options.ResponderChainExtraStore);
-        X509ChainBuildHelpers.ApplyTrustAnchors(chain.ChainPolicy, options.ResponderChainTrustAnchors);
+        X509ChainBuildHelpers.ApplyExtraStoreAndTrustAnchors(
+            chain.ChainPolicy,
+            options.ResponderChainExtraStore,
+            options.ResponderChainTrustAnchors);
 
         if (!chain.Build(responder))
         {
@@ -78,7 +79,6 @@ internal static partial class EmbeddedRevocationVerifier
         return true;
     }
 
-    /// <summary>Attempts to verify OCSP cryptographic signature.</summary>
     private static bool TryVerifyOcspCryptographicSignature(
         byte[] der,
         IReadOnlyList<X509Certificate2> chainFromLeaf,

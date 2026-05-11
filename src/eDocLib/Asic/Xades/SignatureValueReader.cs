@@ -1,5 +1,6 @@
 using System.Security.Cryptography.Xml;
 using System.Xml;
+using eDocLib;
 
 namespace eDocLib.Asic.Xades;
 
@@ -27,24 +28,16 @@ internal static class SignatureValueReader
             return false;
         }
 
-        var text = el.InnerText.Trim();
-        if (text.Length == 0)
+        if (!Base64Bytes.TryFromBase64Trimmed(el.InnerText, out octets))
         {
-            error = "ds:SignatureValue is empty.";
+            error = string.IsNullOrWhiteSpace(el.InnerText)
+                ? "ds:SignatureValue is empty."
+                : "ds:SignatureValue is not valid Base64.";
             return false;
         }
 
-        try
-        {
-            octets = Convert.FromBase64String(text);
-            error = null;
-            return true;
-        }
-        catch (FormatException)
-        {
-            error = "ds:SignatureValue is not valid Base64.";
-            return false;
-        }
+        error = null;
+        return true;
     }
 
     /// <summary>

@@ -1,5 +1,5 @@
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Xml.Linq;
 using eDocLib.Tsl.Xml;
@@ -12,17 +12,14 @@ namespace eDocLib.Validation;
 /// </summary>
 public sealed class TrustedListServiceIndex
 {
-    /// <summary>ETSI TSL namespace alias.</summary>
     private static readonly XNamespace TslNs = TslXmlNamespace.Tsl;
 
-    /// <summary>Stores the by thumbprint.</summary>
     private readonly Dictionary<string, TrustedListQualification> _byThumbprint;
 
-    /// <summary>Initializes a new trusted list service index instance.</summary>
     private TrustedListServiceIndex(Dictionary<string, TrustedListQualification> byThumbprint) =>
         _byThumbprint = byThumbprint;
 
-    /// <summary>Creates a value from x document.</summary>
+    /// <summary>Builds a thumbprint → qualification map from TSL <c>TSPService</c> nodes.</summary>
     public static TrustedListServiceIndex FromXDocument(XDocument doc)
     {
         ArgumentNullException.ThrowIfNull(doc);
@@ -40,11 +37,8 @@ public sealed class TrustedListServiceIndex
                 continue;
             }
 
-            var typeIds = svcInfo.Elements(TslNs + "ServiceTypeIdentifier")
-                .Select(e => e.Value.Trim())
-                .Where(s => s.Length > 0)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
+            var typeIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            CollectTrimmedNonEmptyServiceTypeIdentifiers(svcInfo.Elements(TslNs + "ServiceTypeIdentifier"), typeIds);
             if (typeIds.Count == 0)
             {
                 continue;
@@ -54,28 +48,8 @@ public sealed class TrustedListServiceIndex
 
             foreach (var certEl in svcInfo.Descendants(TslNs + "X509Certificate"))
             {
-                var text = TslXmlText.CollapseBase64Whitespace(certEl.Value);
-                if (text.Length == 0)
-                {
-                    continue;
-                }
-
-                byte[] raw;
-                try
-                {
-                    raw = Convert.FromBase64String(text);
-                }
-                catch (FormatException)
-                {
-                    continue;
-                }
-
-                X509Certificate2 cert;
-                try
-                {
-                    cert = new X509Certificate2(raw);
-                }
-                catch (CryptographicException)
+                var cert = TslXmlText.TryReadX509DerCertificate(certEl.Value);
+                if (cert is null)
                 {
                     continue;
                 }
@@ -94,9 +68,9 @@ public sealed class TrustedListServiceIndex
                         set.Add(t);
                     }
 
-                    if (status is not null && !statusByThumb.ContainsKey(thumb))
+                    if (status is not null)
                     {
-                        statusByThumb[thumb] = status;
+                        statusByThumb.TryAdd(thumb, status);
                     }
 
                     if (historySnapshots.Count > 0)
@@ -118,9 +92,11 @@ public sealed class TrustedListServiceIndex
             IReadOnlyList<TrustedListServiceHistorySnapshot>? hist =
                 histList is { Count: > 0 } ? histList : null;
 
+            var sortedServiceTypes = new List<string>(set);
+            sortedServiceTypes.Sort(StringComparer.OrdinalIgnoreCase);
             dict[thumb] = new TrustedListQualification
             {
-                ServiceTypeIdentifiers = set.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList(),
+                ServiceTypeIdentifiers = sortedServiceTypes,
                 ServiceStatusUri = statusByThumb.GetValueOrDefault(thumb),
                 ServiceHistory = hist,
             };
@@ -129,7 +105,6 @@ public sealed class TrustedListServiceIndex
         return new TrustedListServiceIndex(dict);
     }
 
-    /// <summary>Appends history snapshots.</summary>
     private static void AppendHistorySnapshots(
         Dictionary<string, List<TrustedListServiceHistorySnapshot>> historyByThumb,
         string thumb,
@@ -141,10 +116,7 @@ public sealed class TrustedListServiceIndex
             historyByThumb[thumb] = list;
         }
 
-        foreach (var s in snapshots)
-        {
-            list.Add(s);
-        }
+        list.AddRange(snapshots);
     }
 
     /// <summary>Parses <c>TSPService/ServiceHistory/ServiceHistoryInstance</c> nodes.</summary>
@@ -159,16 +131,15 @@ public sealed class TrustedListServiceIndex
         var list = new List<TrustedListServiceHistorySnapshot>();
         foreach (var inst in root.Elements(TslNs + "ServiceHistoryInstance"))
         {
-            var types = inst.Elements(TslNs + "ServiceTypeIdentifier")
-                .Select(e => e.Value.Trim())
-                .Where(s => s.Length > 0)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(s => s, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-            if (types.Count == 0)
+            var typeIdSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            CollectTrimmedNonEmptyServiceTypeIdentifiers(inst.Elements(TslNs + "ServiceTypeIdentifier"), typeIdSet);
+            if (typeIdSet.Count == 0)
             {
                 continue;
             }
+
+            var types = new List<string>(typeIdSet);
+            types.Sort(StringComparer.OrdinalIgnoreCase);
 
             var status = inst.Element(TslNs + "ServiceStatus")?.Value.Trim();
             var timeEl = inst.Element(TslNs + "StatusStartingTime");
@@ -182,13 +153,39 @@ public sealed class TrustedListServiceIndex
                 });
         }
 
-        return list
-            .OrderBy(s => s.StatusStartingTime ?? DateTimeOffset.MaxValue)
-            .ThenBy(s => s.ServiceStatusUri ?? "", StringComparer.Ordinal)
-            .ToList();
+        list.Sort(CompareServiceHistorySnapshot);
+        return list;
     }
 
-    /// <summary>Attempts to parse status starting time.</summary>
+    private static int CompareServiceHistorySnapshot(
+        TrustedListServiceHistorySnapshot a,
+        TrustedListServiceHistorySnapshot b)
+    {
+        var ta = a.StatusStartingTime ?? DateTimeOffset.MaxValue;
+        var tb = b.StatusStartingTime ?? DateTimeOffset.MaxValue;
+        var c = ta.CompareTo(tb);
+        if (c != 0)
+        {
+            return c;
+        }
+
+        return string.Compare(a.ServiceStatusUri ?? "", b.ServiceStatusUri ?? "", StringComparison.Ordinal);
+    }
+
+    private static void CollectTrimmedNonEmptyServiceTypeIdentifiers(
+        IEnumerable<XElement> elements,
+        HashSet<string> into)
+    {
+        foreach (var e in elements)
+        {
+            var s = e.Value.Trim();
+            if (s.Length > 0)
+            {
+                into.Add(s);
+            }
+        }
+    }
+
     private static DateTimeOffset? TryParseStatusStartingTime(XElement? el) => TslXmlText.TryParseUtcDateTime(el);
 
     /// <summary>Loads XML from a stream (whitespace may be normalized; use for indexing only, not for signature verification).</summary>

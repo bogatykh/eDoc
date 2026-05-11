@@ -11,30 +11,20 @@ namespace eDocLib.Asic.Manifest {
     /// </summary>
     internal class OasisManifest
     {
-        /// <summary>Defines the namespace name value.</summary>
         private const string NamespaceName = "urn:oasis:names:tc:opendocument:xmlns:manifest:1.0";
-        /// <summary>Defines the namespace prefix value.</summary>
         private const string NamespacePrefix = "manifest";
 
-        /// <summary>Defines the root full path value.</summary>
         private const string RootFullPath = "/";
 
-        /// <summary>Defines the manifest element name value.</summary>
         private const string ManifestElementName = "manifest";
-        /// <summary>Defines the file entry element name value.</summary>
         private const string FileEntryElementName = "file-entry";
 
-        /// <summary>Defines the full path attribute name value.</summary>
         private const string FullPathAttributeName = "full-path";
-        /// <summary>Defines the media type attribute name value.</summary>
         private const string MediaTypeAttributeName = "media-type";
-        /// <summary>Defines the version attribute name value.</summary>
         private const string VersionAttributeName = "version";
 
-        /// <summary>Defines the manifest version value.</summary>
         private const string ManifestVersion = "1.2";
 
-        /// <summary>Stores the files.</summary>
         private readonly Dictionary<string, string> _files = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary><c>full-path</c> → <c>media-type</c> from parsed manifest entries.</summary>
@@ -46,7 +36,6 @@ namespace eDocLib.Asic.Manifest {
             }
         }
 
-        /// <summary>Attempts to get media type.</summary>
         public bool TryGetMediaType(string fullPath, [NotNullWhen(true)] out string? mediaType) =>
             _files.TryGetValue(fullPath, out mediaType);
 

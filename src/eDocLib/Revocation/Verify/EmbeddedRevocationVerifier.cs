@@ -37,7 +37,6 @@ internal static partial class EmbeddedRevocationVerifier
             verificationOptions,
             additionalCrlIssuerCertificates);
 
-    /// <summary>Attempts to verify one CRL blob.</summary>
     private static bool TryVerifyOneCrlBlob(
         byte[] crlDer,
         X509Certificate2 signingCertificate,
@@ -67,7 +66,6 @@ internal static partial class EmbeddedRevocationVerifier
         return true;
     }
 
-    /// <summary>Attempts to find CRL issuer and verify.</summary>
     private static bool TryFindCrlIssuerAndVerify(
         Org.BouncyCastle.X509.X509Crl crl,
         IReadOnlyList<X509Certificate2> chainFromLeaf,

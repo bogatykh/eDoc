@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Xml.Linq;
 using eDocLib.Tsl.Xml;
@@ -11,7 +10,6 @@ namespace eDocLib.Validation;
 /// </summary>
 internal static class TrustedListCertificateParser
 {
-    /// <summary>ETSI TSL namespace alias.</summary>
     private static readonly XNamespace TslNs = TslXmlNamespace.Tsl;
 
     /// <summary>
@@ -25,38 +23,16 @@ internal static class TrustedListCertificateParser
         var byThumb = new Dictionary<string, X509Certificate2>(StringComparer.OrdinalIgnoreCase);
         foreach (var el in doc.Descendants(TslNs + "X509Certificate"))
         {
-            var text = TslXmlText.CollapseBase64Whitespace(el.Value);
-            if (text.Length == 0)
-                continue;
-
-            byte[] raw;
-            try
-            {
-                raw = Convert.FromBase64String(text);
-            }
-            catch (FormatException)
+            var cert = TslXmlText.TryReadX509DerCertificate(el.Value);
+            if (cert is null)
             {
                 continue;
             }
 
-            X509Certificate2 cert;
-            try
-            {
-                cert = new X509Certificate2(raw);
-            }
-            catch (CryptographicException)
-            {
-                continue;
-            }
-
-            var thumb = cert.Thumbprint;
-            if (byThumb.ContainsKey(thumb))
+            if (!byThumb.TryAdd(cert.Thumbprint, cert))
             {
                 cert.Dispose();
-                continue;
             }
-
-            byThumb.Add(thumb, cert);
         }
 
         var col = new X509Certificate2Collection();

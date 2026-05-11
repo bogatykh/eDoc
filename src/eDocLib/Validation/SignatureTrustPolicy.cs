@@ -3,6 +3,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using eDocLib.Revocation;
 using eDocLib.Revocation.Online;
+using eDocLib;
 
 namespace eDocLib.Validation;
 
@@ -108,6 +109,38 @@ public sealed class SignatureTrustPolicy
         chainPolicy.RevocationMode = UsesApplicationControlledOnlineRevocation
             ? X509RevocationMode.NoCheck
             : RevocationMode;
+    }
+
+    /// <summary>
+    /// Creates an <see cref="X509Chain"/> with <see cref="X509RevocationFlag.ExcludeRoot"/> and this policy’s revocation mode
+    /// (<see cref="ApplyRevocationMode"/>).
+    /// </summary>
+    public X509Chain CreateX509Chain()
+    {
+        var chain = new X509Chain();
+        chain.ChainPolicy.RevocationFlag = X509RevocationFlag.ExcludeRoot;
+        ApplyRevocationMode(chain.ChainPolicy);
+        return chain;
+    }
+
+    /// <summary>
+    /// Applies <see cref="ExtraChainCertificates"/> (<c>ExtraStore</c>) and <see cref="CustomTrustAnchors"/> to <paramref name="chainPolicy"/>
+    /// for PKIX validation of the XML-DSig signer certificate (see <see cref="ValidateCertificateChain"/>).
+    /// </summary>
+    public void ApplySignerChainStores(X509ChainPolicy chainPolicy)
+    {
+        ArgumentNullException.ThrowIfNull(chainPolicy);
+        X509ChainBuildHelpers.ApplyExtraStoreAndTrustAnchors(chainPolicy, ExtraChainCertificates, CustomTrustAnchors);
+    }
+
+    /// <summary>
+    /// Applies trust roots for TSA PKIX validation: <see cref="TsaTrustAnchors"/> when non-empty; otherwise <see cref="CustomTrustAnchors"/>.
+    /// </summary>
+    public void ApplyTsaChainTrustAnchors(X509ChainPolicy chainPolicy)
+    {
+        ArgumentNullException.ThrowIfNull(chainPolicy);
+        var roots = TsaTrustAnchors is { Count: > 0 } ? TsaTrustAnchors : CustomTrustAnchors;
+        X509ChainBuildHelpers.ApplyTrustAnchors(chainPolicy, roots);
     }
 
     /// <summary>

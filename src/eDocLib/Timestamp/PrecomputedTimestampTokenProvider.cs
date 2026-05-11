@@ -5,7 +5,6 @@ namespace eDocLib.Timestamp;
 /// </summary>
 internal sealed class PrecomputedTimestampTokenProvider : ITimestampProvider
 {
-    /// <summary>Stores the token.</summary>
     private readonly byte[] _token;
 
     /// <summary>Initializes a new precomputed timestamp token provider instance.</summary>
@@ -15,7 +14,7 @@ internal sealed class PrecomputedTimestampTokenProvider : ITimestampProvider
         _token = (byte[])timeStampTokenDer.Clone();
     }
 
-    /// <summary>Gets timestamp async.</summary>
+    /// <inheritdoc />
     public Task<byte[]> GetTimestampAsync(ReadOnlyMemory<byte> messageImprint, CancellationToken cancellationToken = default) =>
         Task.FromResult((byte[])_token.Clone());
 }

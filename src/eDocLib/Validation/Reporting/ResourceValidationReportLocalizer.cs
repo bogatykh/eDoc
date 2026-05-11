@@ -9,11 +9,8 @@ namespace eDocLib.Validation.Reporting;
 /// </summary>
 internal sealed class ResourceValidationReportLocalizer : IValidationReportLocalizer
 {
-    /// <summary>Stores the resources.</summary>
     private readonly ResourceManager _resources;
-    /// <summary>Stores the fallback.</summary>
     private readonly IValidationReportLocalizer _fallback;
-    /// <summary>Stores the culture.</summary>
     private readonly CultureInfo? _culture;
 
     /// <summary>Initializes a new resource validation report localizer instance.</summary>
@@ -39,7 +36,7 @@ internal sealed class ResourceValidationReportLocalizer : IValidationReportLocal
                 typeof(ResourceValidationReportLocalizer).Assembly),
             culture);
 
-    /// <summary>Stores the culture.</summary>
+    /// <inheritdoc />
     public CultureInfo? Culture => _culture ?? _fallback.Culture;
 
     /// <summary>Returns the validation indication text.</summary>

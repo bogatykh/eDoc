@@ -8,7 +8,6 @@ namespace eDocLib;
 /// </summary>
 public sealed class EdocBasicSigningJob
 {
-    /// <summary>Stores the package.</summary>
     private readonly Edoc _package;
 
     /// <summary>Initializes a new eDoc basic signing job instance.</summary>

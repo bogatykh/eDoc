@@ -6,7 +6,6 @@ namespace eDocLib.Validation;
 /// </summary>
 internal static class TrustedListParser
 {
-    /// <summary>Attempts to parse the input.</summary>
     /// <inheritdoc cref="TrustedListReader.TryLoadDocument(Stream, bool, out TrustedListLoadResult?, out string?)"/>
     public static bool TryParse(
         Stream tslXml,

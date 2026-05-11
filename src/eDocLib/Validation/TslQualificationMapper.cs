@@ -1,6 +1,3 @@
-using System.Collections.Generic;
-using System.Linq;
-
 namespace eDocLib.Validation;
 
 /// <summary>
@@ -25,19 +22,16 @@ internal static class TslQualificationMapper
     public const string ServiceStatusAccredited =
         "http://uri.etsi.org/TrstSvc/TrustedList/Svcstatus/accredited";
 
-    /// <summary>Stores the qualified esign types.</summary>
     private static readonly HashSet<string> QualifiedEsignTypes = new(StringComparer.OrdinalIgnoreCase)
     {
         ServiceTypeQCertESign,
     };
 
-    /// <summary>Stores the qualified eseal types.</summary>
     private static readonly HashSet<string> QualifiedEsealTypes = new(StringComparer.OrdinalIgnoreCase)
     {
         ServiceTypeQCertESeal,
     };
 
-    /// <summary>Stores the granted like statuses.</summary>
     private static readonly HashSet<string> GrantedLikeStatuses = new(StringComparer.OrdinalIgnoreCase)
     {
         ServiceStatusGranted,
@@ -54,43 +48,32 @@ internal static class TslQualificationMapper
     {
         var esign = new HashSet<string>(QualifiedEsignTypes, StringComparer.OrdinalIgnoreCase);
         var eseal = new HashSet<string>(QualifiedEsealTypes, StringComparer.OrdinalIgnoreCase);
-        if (options?.ExtraQualifiedEsignServiceTypeUris is not null)
-        {
-            foreach (var u in options.ExtraQualifiedEsignServiceTypeUris)
-            {
-                if (!string.IsNullOrWhiteSpace(u))
-                {
-                    esign.Add(u.Trim());
-                }
-            }
-        }
-
-        if (options?.ExtraQualifiedEsealServiceTypeUris is not null)
-        {
-            foreach (var u in options.ExtraQualifiedEsealServiceTypeUris)
-            {
-                if (!string.IsNullOrWhiteSpace(u))
-                {
-                    eseal.Add(u.Trim());
-                }
-            }
-        }
+        TslQualificationUriSets.AddTrimmedNonEmpty(options?.ExtraQualifiedEsignServiceTypeUris, esign);
+        TslQualificationUriSets.AddTrimmedNonEmpty(options?.ExtraQualifiedEsealServiceTypeUris, eseal);
 
         var granted = new HashSet<string>(GrantedLikeStatuses, StringComparer.OrdinalIgnoreCase);
-        if (options?.ExtraGrantedLikeServiceStatusUris is not null)
-        {
-            foreach (var u in options.ExtraGrantedLikeServiceStatusUris)
-            {
-                if (!string.IsNullOrWhiteSpace(u))
-                {
-                    granted.Add(u.Trim());
-                }
-            }
-        }
+        TslQualificationUriSets.AddTrimmedNonEmpty(options?.ExtraGrantedLikeServiceStatusUris, granted);
 
         var types = serviceTypeIdentifiers ?? Array.Empty<string>();
-        var suggestsSign = types.Any(t => esign.Contains(t));
-        var suggestsSeal = types.Any(t => eseal.Contains(t));
+        var suggestsSign = false;
+        var suggestsSeal = false;
+        foreach (var t in types)
+        {
+            if (!suggestsSign && esign.Contains(t))
+            {
+                suggestsSign = true;
+            }
+
+            if (!suggestsSeal && eseal.Contains(t))
+            {
+                suggestsSeal = true;
+            }
+
+            if (suggestsSign && suggestsSeal)
+            {
+                break;
+            }
+        }
 
         bool? statusGranted = null;
         if (!string.IsNullOrWhiteSpace(serviceStatusUri))

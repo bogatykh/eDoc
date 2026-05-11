@@ -8,7 +8,6 @@ namespace eDocLib.Revocation.Cache;
 /// </summary>
 internal sealed class RevocationDerDiskStore : IRevocationDerCache
 {
-    /// <summary>Stores the inner.</summary>
     private readonly DirectoryRevocationDerCache _inner;
 
     /// <summary>Initializes a new revocation DER disk store instance.</summary>
@@ -18,21 +17,17 @@ internal sealed class RevocationDerDiskStore : IRevocationDerCache
         _inner = new DirectoryRevocationDerCache(directory, options);
     }
 
-    /// <summary>Stores the directory path.</summary>
     /// <inheritdoc cref="DirectoryRevocationDerCache.DirectoryPath" />
     public string DirectoryPath => _inner.DirectoryPath;
 
-    /// <summary>Purges expired entries async.</summary>
     /// <inheritdoc cref="DirectoryRevocationDerCache.PurgeExpiredEntriesAsync(CancellationToken)" />
     public Task PurgeExpiredEntriesAsync(CancellationToken cancellationToken = default) =>
         _inner.PurgeExpiredEntriesAsync(cancellationToken);
 
-    /// <summary>Attempts to get async.</summary>
     /// <inheritdoc />
     public ValueTask<byte[]?> TryGetAsync(string key, CancellationToken cancellationToken = default) =>
         _inner.TryGetAsync(key, cancellationToken);
 
-    /// <summary>Sets async.</summary>
     /// <inheritdoc />
     public Task SetAsync(string key, ReadOnlyMemory<byte> der, CancellationToken cancellationToken = default) =>
         _inner.SetAsync(key, der, cancellationToken);

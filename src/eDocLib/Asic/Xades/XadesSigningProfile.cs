@@ -37,7 +37,7 @@ public readonly record struct XadesSigningProfile(
     XadesKeyKind KeyKind)
 {
 
-    /// <summary>Creates a value from certificate.</summary>
+    /// <summary>Builds digest and signature method URIs from the signer certificate key type.</summary>
     /// <param name="certificate">Signer certificate whose key type and parameters determine algorithms.</param>
     /// <param name="rsaDigestPreference">For RSA keys only; ECDSA profiles ignore this.</param>
     public static XadesSigningProfile FromCertificate(

@@ -44,7 +44,7 @@ internal static class RevocationFetchUriPolicy
         return true;
     }
 
-    /// <summary>Attempts to validate certificate revocation URIs.</summary>
+    /// <summary>When enabled, rejects OCSP/CRL HTTP URIs whose hosts are private or loopback literals.</summary>
     public static bool TryValidateCertificateRevocationUris(
         X509Certificate2 endEntity,
         bool rejectLiteralPrivateAndLoopbackHosts,

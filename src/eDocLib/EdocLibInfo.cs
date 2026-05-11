@@ -8,7 +8,6 @@ namespace eDocLib;
 /// </summary>
 public static class EdocLibInfo
 {
-    /// <summary>Stores the lib assembly.</summary>
     private static readonly Assembly LibAssembly = typeof(EdocLibInfo).Assembly;
 
     /// <summary>

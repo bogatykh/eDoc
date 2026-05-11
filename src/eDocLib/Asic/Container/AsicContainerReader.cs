@@ -19,33 +19,21 @@ namespace eDocLib.Asic.Container {
     /// </summary>
     internal partial class AsicContainerReader : IDisposable
     {
-        /// <summary>Stores the ZIP input stream.</summary>
         private readonly ZipInputStream _zipInputStream;
-        /// <summary>Stores the payload memory threshold bytes.</summary>
         private readonly long _payloadMemoryThresholdBytes;
-        /// <summary>Stores the payload spill temp directory.</summary>
         private readonly string? _payloadSpillTempDirectory;
 
-        /// <summary>Stores the UTF 8 encoding.</summary>
         private static readonly Encoding Utf8Encoding = Encoding.UTF8;
-        /// <summary>Stores the signature file name regex.</summary>
         private static readonly Regex SignatureFileNameRegex = new Regex(
             $"{AsicContainer.MetaInfSlash}(.*)signatures(.*).xml",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
-        /// <summary>Stores the mime type.</summary>
         private string? _mimeType;
-        /// <summary>Stores the manifest.</summary>
         private OasisManifest? _manifest;
-        /// <summary>Stores the data files.</summary>
         private readonly Dictionary<string, DataFile> _dataFiles = new Dictionary<string, DataFile>();
-        /// <summary>Stores the data files ordered.</summary>
         private readonly List<DataFile> _dataFilesOrdered = new List<DataFile>();
-        /// <summary>Stores the signatures.</summary>
         private readonly List<ISignature> _signatures = new List<ISignature>();
-        /// <summary>Stores the first non directory entry name.</summary>
         private string? _firstNonDirectoryEntryName;
-        /// <summary>Stores the first non directory compression.</summary>
         private CompressionMethod? _firstNonDirectoryCompression;
         /// <summary>Whether a <c>mimetype</c> local file entry has already been consumed (ASiC-E allows at most one).</summary>
         private bool _mimetypeZipEntryConsumed;
