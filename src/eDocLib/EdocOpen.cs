@@ -1,6 +1,7 @@
 using System.IO;
 using eDocLib.Asic.Container;
 using eDocLib.Configuration;
+using eDocLib.Exceptions;
 using ICSharpCode.SharpZipLib.Zip;
 
 namespace eDocLib;
@@ -30,7 +31,7 @@ internal static class EdocOpen
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            throw new EdocException($"Failed to read file: {path}", EdocFailureKind.Io, ex);
+            throw new EdocIOException($"Failed to read file: {path}", ex);
         }
     }
 
@@ -46,25 +47,25 @@ internal static class EdocOpen
         }
         catch (AsicException ex)
         {
-            throw new EdocException("Failed to open EDOC package: " + ex.Message, EdocFailureKind.InvalidStructure, ex);
+            throw new EdocInvalidStructureException("Failed to open EDOC package: " + ex.Message, ex);
         }
         catch (ZipException ex)
         {
-            throw new EdocException("Failed to open EDOC package: invalid ZIP container.", EdocFailureKind.InvalidStructure, ex);
+            throw new EdocInvalidStructureException("Failed to open EDOC package: invalid ZIP container.", ex);
         }
         catch (Exception ex) when (ex is IOException or ArgumentException or InvalidDataException or System.Xml.XmlException)
         {
-            throw new EdocException("Failed to open EDOC package.", MapOpenFailure(ex), ex);
+            throw MapOpenFailure(ex);
         }
     }
 
-    private static EdocFailureKind MapOpenFailure(Exception ex) =>
+    private static EdocException MapOpenFailure(Exception ex) =>
         ex switch
         {
-            IOException => EdocFailureKind.Io,
-            InvalidDataException => EdocFailureKind.InvalidStructure,
-            System.Xml.XmlException => EdocFailureKind.InvalidStructure,
-            ArgumentException => EdocFailureKind.InvalidFormat,
-            _ => EdocFailureKind.Unknown,
+            IOException io => new EdocIOException("Failed to open EDOC package.", io),
+            InvalidDataException id => new EdocInvalidStructureException("Failed to open EDOC package.", id),
+            System.Xml.XmlException xml => new EdocInvalidStructureException("Failed to open EDOC package.", xml),
+            ArgumentException arg => new EdocInvalidFormatException("Failed to open EDOC package.", arg),
+            _ => new EdocUnknownException("Failed to open EDOC package.", ex),
         };
 }

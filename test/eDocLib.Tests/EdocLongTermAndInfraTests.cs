@@ -57,7 +57,7 @@ public class EdocLongTermAndInfraTests
         edoc.AddDataObject(new MemoryStream("x"u8.ToArray()), "doc.txt", "text/plain");
         var job = new EdocLongTermSigningJob(edoc, cert, DateTimeOffset.Parse("2025-03-01T12:00:00Z"))
         {
-            RsaDigestPreference = XadesRsaDigestPreference.Sha384,
+            Xades = { RsaDigestPreference = XadesRsaDigestPreference.Sha384 },
         };
         var prep = job.Prepare();
         Assert.Equal(XadesSignatureAlgorithms.RsaWithSha384, prep.SignatureMethodUri);

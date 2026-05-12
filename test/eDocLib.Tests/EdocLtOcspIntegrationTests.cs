@@ -179,7 +179,7 @@ public class EdocLtOcspIntegrationTests
 
     /// <summary>
     /// Same LT job + OCSP path as <see cref="EdocLongTermSigningJob_round_trip_validates_with_embedded_ocsp_and_strict_responder_pkix"/>,
-    /// plus document-level <see cref="EdocValidation.BuildValidationReport"/> (same reporting expectations as <see cref="LtFixtureOpenAndValidateTests"/>).
+    /// plus document-level <see cref="EdocValidation.BuildValidationReport(EdocReadValidationResult, SignatureTrustPolicy)"/> (same reporting expectations as <see cref="LtFixtureOpenAndValidateTests"/>).
     /// </summary>
     [Fact]
     public async Task EdocLongTermSigningJob_BuildValidationReport_embedded_ocsp_shows_qualified_profile_and_revocation_passed()

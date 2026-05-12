@@ -7,6 +7,7 @@ using eDocLib;
 using eDocLib.Asic.Container;
 using eDocLib.Asic.Manifest;
 using eDocLib.Configuration;
+using eDocLib.Exceptions;
 using eDocLib.Asic.Xades;
 using ICSharpCode.SharpZipLib.Zip;
 using Xunit;
@@ -23,18 +24,17 @@ public class EdocOpenAndProbeEdgeCaseTests
     }
 
     [Fact]
-    public void Open_wraps_duplicate_mimetype_AsicException_as_EdocException_InvalidStructure()
+    public void Open_wraps_duplicate_mimetype_AsicException_as_EdocInvalidStructureException()
     {
         var zip = BuildZipWithTrailingSecondMimetype(AsicContainer.MimeType, "application/vnd.etsi.asic-s+zip");
 
-        var ex = Assert.Throws<EdocException>(() => Edoc.Open(EdocLibConfig.Default, new MemoryStream(zip)));
-        Assert.Equal(EdocFailureKind.InvalidStructure, ex.Kind);
+        var ex = Assert.Throws<EdocInvalidStructureException>(() => Edoc.Open(EdocLibConfig.Default, new MemoryStream(zip)));
         Assert.Contains("Duplicate", ex.Message, StringComparison.OrdinalIgnoreCase);
         Assert.IsAssignableFrom<AsicException>(ex.InnerException);
     }
 
     [Fact]
-    public void Open_wraps_manifest_duplicate_full_path_ArgumentException_as_EdocException_InvalidFormat()
+    public void Open_wraps_manifest_duplicate_full_path_ArgumentException_as_EdocInvalidFormatException()
     {
         XNamespace ns = "urn:oasis:names:tc:opendocument:xmlns:manifest:1.0";
         var manifestDoc = new XDocument(
@@ -63,8 +63,7 @@ public class EdocOpenAndProbeEdgeCaseTests
             new Dictionary<string, byte[]> { ["doc.txt"] = "x"u8.ToArray() },
             Array.Empty<byte[]>());
 
-        var ex = Assert.Throws<EdocException>(() => Edoc.Open(EdocLibConfig.Default, new MemoryStream(zip)));
-        Assert.Equal(EdocFailureKind.InvalidFormat, ex.Kind);
+        var ex = Assert.Throws<EdocInvalidFormatException>(() => Edoc.Open(EdocLibConfig.Default, new MemoryStream(zip)));
         Assert.IsAssignableFrom<ArgumentException>(ex.InnerException);
     }
 
@@ -110,11 +109,10 @@ public class EdocOpenAndProbeEdgeCaseTests
     }
 
     [Fact]
-    public void Open_non_zip_bytes_throws_EdocException_InvalidStructure()
+    public void Open_non_zip_bytes_throws_EdocInvalidStructureException()
     {
         using var ms = new MemoryStream(new byte[] { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07 });
-        var ex = Assert.Throws<EdocException>(() => Edoc.Open(EdocLibConfig.Default, ms));
-        Assert.Equal(EdocFailureKind.InvalidStructure, ex.Kind);
+        _ = Assert.Throws<EdocInvalidStructureException>(() => Edoc.Open(EdocLibConfig.Default, ms));
     }
 
     private static byte[] BuildZipWithTrailingSecondMimetype(string firstMimeBody, string secondMimeBody)

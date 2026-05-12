@@ -1,6 +1,6 @@
 ﻿namespace eDocLib.Asic.Container;
 
-/// <summary>Low-level ASiC-ZIP parse or structural failure before mapping to <see cref="EdocException"/>.</summary>
+/// <summary>Low-level ASiC-ZIP parse or structural failure before mapping to <see cref="eDocLib.Exceptions.EdocException"/>.</summary>
 internal class AsicException : Exception
 {
     /// <summary>Initializes a new ASiC exception instance.</summary>

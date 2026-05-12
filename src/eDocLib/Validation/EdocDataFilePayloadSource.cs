@@ -17,7 +17,7 @@ namespace eDocLib.Validation;
 /// </para>
 /// <para>
 /// Lookup is case-insensitive on the relative URI to match the legacy dictionary semantics in
-/// <see cref="EdocValidation"/>. Stream ownership remains with the <see cref="Edoc"/>; the verifier does not
+/// <see cref="EdocContainerSignatureValidator"/>. Stream ownership remains with the <see cref="Edoc"/>; the verifier does not
 /// dispose the returned stream.
 /// </para>
 /// </remarks>

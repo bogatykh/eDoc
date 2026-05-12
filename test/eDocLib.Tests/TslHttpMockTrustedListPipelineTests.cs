@@ -19,21 +19,6 @@ namespace eDocLib.Tests;
 /// </summary>
 public class TslHttpMockTrustedListPipelineTests
 {
-    private sealed class QueueHandler : HttpMessageHandler
-    {
-        private readonly Queue<HttpResponseMessage> _responses = new();
-
-        internal List<string> RequestUris { get; } = new();
-
-        public void Enqueue(HttpResponseMessage response) => _responses.Enqueue(response);
-
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        {
-            RequestUris.Add(request.RequestUri!.ToString());
-            return Task.FromResult(_responses.Dequeue());
-        }
-    }
-
     [Fact]
     public async Task Http_mock_signed_tsl_fetch_TrustedListReader_SignatureValidator_records_qualification()
     {
@@ -78,7 +63,7 @@ public class TslHttpMockTrustedListPipelineTests
         doc.Save(tslMs);
         var tslBytes = tslMs.ToArray();
 
-        var handler = new QueueHandler();
+        var handler = new QueuedHttpMessageHandler();
         handler.Enqueue(new HttpResponseMessage(HttpStatusCode.OK)
         {
             Content = new ByteArrayContent(tslBytes),

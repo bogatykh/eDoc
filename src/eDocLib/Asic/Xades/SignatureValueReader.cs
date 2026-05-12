@@ -1,6 +1,5 @@
 using System.Security.Cryptography.Xml;
 using System.Xml;
-using eDocLib;
 
 namespace eDocLib.Asic.Xades;
 

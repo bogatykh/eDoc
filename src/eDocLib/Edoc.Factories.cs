@@ -1,4 +1,5 @@
 using System.IO;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using eDocLib.Asic.Container;
@@ -21,10 +22,9 @@ public sealed partial class Edoc
     /// </summary>
     public const long DefaultPayloadMemoryThresholdBytes = AsicContainer.DefaultPayloadMemoryThresholdBytes;
 
-    /// <summary>Creates a new empty EDOC package.</summary>
-    /// <param name="formatVersion">Optional informational label; defaults to <see cref="DefaultFormatVersion"/>.</param>
-    public static Edoc CreateNew(string? formatVersion = null) =>
-        new(new AsicContainer(), NormalizeFormatVersionStatic(formatVersion));
+    /// <summary>Creates a new empty EDOC package with informative <see cref="FormatVersion"/> set to <see cref="DefaultFormatVersion"/>.</summary>
+    public static Edoc CreateNew() =>
+        new(new AsicContainer(), DefaultFormatVersion);
 
     /// <summary>Opens a container using <paramref name="config"/> for payload spill / memory threshold.</summary>
     public static Edoc Open(EdocLibConfig config, Stream stream)
@@ -42,17 +42,47 @@ public sealed partial class Edoc
         return EdocOpen.OpenMapped(path, config);
     }
 
-    /// <summary>Opens with <paramref name="config"/>, then verifies signatures asynchronously.</summary>
+    /// <summary>
+    /// Opens with <paramref name="config"/>, fetches the Latvia national TSL using <paramref name="tslHttpClient"/>,
+    /// then validates signatures using <see cref="SignatureTrustPolicy.ForLatvianEdocLtvWithDefaultTrustedListAsync"/>.
+    /// </summary>
     public static async Task<EdocReadValidationResult> OpenAndValidateAsync(
         EdocLibConfig config,
         Stream stream,
-        SignatureTrustPolicy? trustPolicy = null,
+        HttpClient tslHttpClient,
+        DateTimeOffset? trustedListQualificationReferenceTimeUtc = null,
+        bool verifyTrustedListXmlSignature = true,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(config);
         ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(tslHttpClient);
+
+        var policy = await SignatureTrustPolicy.ForLatvianEdocLtvWithDefaultTrustedListAsync(
+                config,
+                tslHttpClient,
+                trustedListQualificationReferenceTimeUtc,
+                verifyTrustedListXmlSignature,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        return await OpenAndValidateAsync(config, stream, policy, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Opens with <paramref name="config"/>, then verifies signatures using <paramref name="trustPolicy"/>.</summary>
+    public static async Task<EdocReadValidationResult> OpenAndValidateAsync(
+        EdocLibConfig config,
+        Stream stream,
+        SignatureTrustPolicy trustPolicy,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentNullException.ThrowIfNull(trustPolicy);
         var edoc = Open(config, stream);
-        var result = await EdocValidation.ValidateSignaturesAsync(edoc, trustPolicy, cancellationToken).ConfigureAwait(false);
+        var result = await EdocContainerSignatureValidator.Default
+            .ValidateSignaturesAsync(edoc, trustPolicy, cancellationToken)
+            .ConfigureAwait(false);
         return result;
     }
 
@@ -65,6 +95,4 @@ public sealed partial class Edoc
         return ok;
     }
 
-    private static string NormalizeFormatVersionStatic(string? formatVersion) =>
-        string.IsNullOrWhiteSpace(formatVersion) ? DefaultFormatVersion : formatVersion.Trim();
 }

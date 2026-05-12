@@ -171,77 +171,66 @@ internal static partial class SignatureValidator
 
         var signingCert = signature.SigningCertificate as X509Certificate2;
         var tsl = SignatureValidatorTrustedList.Evaluate(policy, signingCert);
+        var tslIndicators = SignatureValidatorTrustedList.SignerQualificationIndicators(policy, tsl);
+
+        SignatureValidationResult WithSignerTrustedList(SignatureValidationResult r) =>
+            r with
+            {
+                SigningCertificateListedInTrustedList = tsl.Listed,
+                TrustedListServiceTypeIdentifiers = tsl.ServiceTypeIds,
+                TrustedListServiceStatus = tsl.ServiceStatus,
+                TrustedListQualificationIndicators = tslIndicators,
+            };
+
         if (!tsl.Ok)
         {
-            return StampSlice() with
+            return WithSignerTrustedList(StampSlice() with
             {
                 Success = false,
                 Error = tsl.Error,
                 ReferencesAndSignatureValid = true,
                 CertificateChainValid = policy.ValidateCertificateChain ? false : null,
-                SigningCertificateListedInTrustedList = tsl.Listed,
-                TrustedListServiceTypeIdentifiers = tsl.ServiceTypeIds,
-                TrustedListServiceStatus = tsl.ServiceStatus,
-                TrustedListQualificationIndicators = tsl.Listed == true
-                    ? TslQualificationMapper.Map(tsl.ServiceTypeIds, tsl.ServiceStatus, policy.ResolveQualificationMappingOptions())
-                    : null,
                 Revocation = Rev(false),
-            };
+            });
         }
-
-        var tslIndicators = tsl.Listed == true
-            ? TslQualificationMapper.Map(tsl.ServiceTypeIds, tsl.ServiceStatus, policy.ResolveQualificationMappingOptions())
-            : null;
 
         if (policy.RequireTrustedListServiceStatusGranted && policy.TrustedListServiceIndex is not null)
         {
             if (tsl.Listed != true || tslIndicators?.ServiceStatusIsGranted != true)
             {
-                return StampSlice() with
+                return WithSignerTrustedList(StampSlice() with
                 {
                     Success = false,
                     Error =
                         "Trusted list policy requires a granted TSL service status and a listed signing certificate.",
                     ReferencesAndSignatureValid = true,
                     CertificateChainValid = policy.ValidateCertificateChain ? false : null,
-                    SigningCertificateListedInTrustedList = tsl.Listed,
-                    TrustedListServiceTypeIdentifiers = tsl.ServiceTypeIds,
-                    TrustedListServiceStatus = tsl.ServiceStatus,
-                    TrustedListQualificationIndicators = tslIndicators,
                     Revocation = Rev(false),
-                };
+                });
             }
         }
 
         if (!policy.ValidateCertificateChain)
         {
-            return StampSlice() with
+            return WithSignerTrustedList(StampSlice() with
             {
                 Success = true,
                 ReferencesAndSignatureValid = true,
                 CertificateChainValid = null,
-                SigningCertificateListedInTrustedList = tsl.Listed,
-                TrustedListServiceTypeIdentifiers = tsl.ServiceTypeIds,
-                TrustedListServiceStatus = tsl.ServiceStatus,
-                TrustedListQualificationIndicators = tslIndicators,
                 Revocation = Rev(false),
-            };
+            });
         }
 
         if (signingCert is null)
         {
-            return StampSlice() with
+            return WithSignerTrustedList(StampSlice() with
             {
                 Success = false,
                 Error = "Cannot validate certificate chain: signing certificate missing.",
                 ReferencesAndSignatureValid = true,
                 CertificateChainValid = false,
-                SigningCertificateListedInTrustedList = tsl.Listed,
-                TrustedListServiceTypeIdentifiers = tsl.ServiceTypeIds,
-                TrustedListServiceStatus = tsl.ServiceStatus,
-                TrustedListQualificationIndicators = tslIndicators,
                 Revocation = Rev(false),
-            };
+            });
         }
 
         using var chain = policy.CreateX509Chain();
@@ -258,19 +247,15 @@ internal static partial class SignatureValidator
         if (!chainOk)
         {
             var status = X509ChainBuildHelpers.FormatChainStatus(chain);
-            return StampSlice() with
+            return WithSignerTrustedList(StampSlice() with
             {
                 Success = false,
                 Error = "Certificate chain validation failed: " + status,
                 ReferencesAndSignatureValid = true,
                 CertificateChainValid = false,
-                SigningCertificateListedInTrustedList = tsl.Listed,
-                TrustedListServiceTypeIdentifiers = tsl.ServiceTypeIds,
-                TrustedListServiceStatus = tsl.ServiceStatus,
-                TrustedListQualificationIndicators = tslIndicators,
                 SignerCertificateChain = chainDiag,
                 Revocation = Rev(pkixChainWasBuilt: true),
-            };
+            });
         }
 
         bool? appOnlineChecked = null;
@@ -289,16 +274,12 @@ internal static partial class SignatureValidator
                 .ConfigureAwait(false);
             if (!onlineOutcome.Ok)
             {
-                return StampSlice() with
+                return WithSignerTrustedList(StampSlice() with
                 {
                     Success = false,
                     Error = onlineOutcome.Error,
                     ReferencesAndSignatureValid = true,
                     CertificateChainValid = true,
-                    SigningCertificateListedInTrustedList = tsl.Listed,
-                    TrustedListServiceTypeIdentifiers = tsl.ServiceTypeIds,
-                    TrustedListServiceStatus = tsl.ServiceStatus,
-                    TrustedListQualificationIndicators = tslIndicators,
                     SignerCertificateChain = chainDiag,
                     ApplicationOnlineRevocationChecked = true,
                     ApplicationOnlineRevocationValid = false,
@@ -310,7 +291,7 @@ internal static partial class SignatureValidator
                         embeddedRevocationValid: null,
                         embeddedArtifactOutcomes: null,
                         onlineArtifactOutcomes: onlineOutcome.Artifacts),
-                };
+                });
             }
 
             appOnlineValid = true;
@@ -338,16 +319,12 @@ internal static partial class SignatureValidator
                         policy.BuildEmbeddedOcspStrictOptions(),
                         policy.ExtraChainCertificates))
                 {
-                    return StampSlice() with
+                    return WithSignerTrustedList(StampSlice() with
                     {
                         Success = false,
                         Error = revErr,
                         ReferencesAndSignatureValid = true,
                         CertificateChainValid = true,
-                        SigningCertificateListedInTrustedList = tsl.Listed,
-                        TrustedListServiceTypeIdentifiers = tsl.ServiceTypeIds,
-                        TrustedListServiceStatus = tsl.ServiceStatus,
-                        TrustedListQualificationIndicators = tslIndicators,
                         SignerCertificateChain = chainDiag,
                         UnsignedRevocationArtifactsValid = false,
                         ApplicationOnlineRevocationChecked = appOnlineChecked,
@@ -360,22 +337,18 @@ internal static partial class SignatureValidator
                             embeddedRevocationValid: false,
                             embeddedArtifactOutcomes,
                             onlineArtifactOutcomes),
-                    };
+                    });
                 }
 
                 unsignedRevocationValid = true;
             }
         }
 
-        return StampSlice() with
+        return WithSignerTrustedList(StampSlice() with
         {
             Success = true,
             ReferencesAndSignatureValid = true,
             CertificateChainValid = true,
-            SigningCertificateListedInTrustedList = tsl.Listed,
-            TrustedListServiceTypeIdentifiers = tsl.ServiceTypeIds,
-            TrustedListServiceStatus = tsl.ServiceStatus,
-            TrustedListQualificationIndicators = tslIndicators,
             SignerCertificateChain = chainDiag,
             UnsignedRevocationArtifactsValid = unsignedRevocationValid,
             ApplicationOnlineRevocationChecked = appOnlineChecked,
@@ -388,6 +361,6 @@ internal static partial class SignatureValidator
                 unsignedRevocationValid,
                 embeddedArtifactOutcomes,
                 onlineArtifactOutcomes),
-        };
+        });
     }
 }

@@ -6,7 +6,7 @@ using eDocLib.Asic.Container;
 namespace eDocLib.Asic.Xades;
 
 /// <summary>
-/// Result of the prepare-sign step (<see cref="EdocBasicSigningJob.Prepare"/>, long-term jobs): XAdES-BES structure with placeholder <c>SignatureValue</c>, ready for
+/// Result of the prepare-sign step (<see cref="eDocLib.Signing.EdocBasicSigningJob.Prepare"/>, long-term jobs): XAdES-BES structure with placeholder <c>SignatureValue</c>, ready for
 /// external signing of <see cref="GetSignableBytes"/>.
 /// </summary>
 public sealed class XadesBesPreparedSignature

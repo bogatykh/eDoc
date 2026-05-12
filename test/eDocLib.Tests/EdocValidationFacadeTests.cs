@@ -154,7 +154,7 @@ public class EdocValidationFacadeTests
     [Fact]
     public async Task OpenAndValidateAsync_stream_overload_wires_default_config()
     {
-        // The non-config overload must defer to Edoc.OpenAndValidateAsync with EdocLibConfig.Default;
+        // The stream+policy overload must defer to Edoc.OpenAndValidateAsync with EdocLibConfig.Default;
         // the behaviour difference would be invisible until someone hit the config-specific paths
         // (spill threshold, temp directory), so the regression is best surfaced as a happy-path round-trip.
         using var rsa = RSA.Create(2048);
@@ -174,7 +174,7 @@ public class EdocValidationFacadeTests
         edoc.Save(zip);
         zip.Position = 0;
 
-        var report = await EdocValidation.OpenAndValidateAsync(zip);
+        var report = await EdocValidation.OpenAndValidateAsync(zip, SignatureTrustPolicy.CryptographyOnly);
         Assert.True(report.AllSignaturesValid);
     }
 

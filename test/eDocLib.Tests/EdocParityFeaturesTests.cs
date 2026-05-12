@@ -120,7 +120,7 @@ public class EdocParityFeaturesTests
     }
 
     [Fact]
-    public async Task IValidatableDocument_Validate_delegates_to_EdocValidation()
+    public async Task IValidatableDocument_Validate_uses_shared_signature_validator()
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=val", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);

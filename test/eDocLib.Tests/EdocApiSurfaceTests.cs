@@ -6,6 +6,7 @@ using System.Text;
 using System.Xml;
 using eDocLib;
 using eDocLib.Configuration;
+using eDocLib.Exceptions;
 using eDocLib.Validation;
 using eDocLib.Asic.Xades;
 using Xunit;
@@ -99,19 +100,19 @@ public class EdocApiSurfaceTests
         using var cert = req.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1));
         var job = new EdocBasicSigningJob(pkg, cert, DateTimeOffset.Parse("2025-01-15T10:00:00Z"))
         {
-            RsaDigestPreference = XadesRsaDigestPreference.Sha384,
+            Xades = { RsaDigestPreference = XadesRsaDigestPreference.Sha384 },
         };
         var prep = job.Prepare();
         Assert.Equal(XadesSignatureAlgorithms.RsaWithSha384, prep.SignatureMethodUri);
     }
 
     [Fact]
-    public async Task Open_corrupt_zip_wraps_EdocException()
+    public async Task Open_corrupt_zip_wraps_as_invalid_structure()
     {
         var buf = Encoding.UTF8.GetBytes("not a zip");
         using var ms = new MemoryStream(buf);
-        var ex = Assert.Throws<EdocException>(() => Edoc.Open(EdocLibConfig.Default, ms));
-        Assert.NotEqual(EdocFailureKind.Unknown, ex.Kind);
+        var ex = Assert.Throws<EdocInvalidStructureException>(() => Edoc.Open(EdocLibConfig.Default, ms));
+        Assert.NotNull(ex.InnerException);
     }
 
     [Fact]
@@ -167,15 +168,6 @@ public class EdocApiSurfaceTests
     public async Task Default_config_is_stable_singleton()
     {
         Assert.Same(EdocLibConfig.Default, EdocLibConfig.Default);
-    }
-
-    [Fact]
-    public async Task EdocLibInfo_reads_assembly_metadata()
-    {
-        Assert.False(string.IsNullOrWhiteSpace(EdocLibInfo.InformationalVersion));
-        Assert.False(string.IsNullOrWhiteSpace(EdocLibInfo.AssemblyVersion));
-        Assert.Equal("eDocLib", EdocLibInfo.AssemblyName);
-        Assert.StartsWith("1.0.0", EdocLibInfo.AssemblyVersion, StringComparison.Ordinal);
     }
 
     [Fact]

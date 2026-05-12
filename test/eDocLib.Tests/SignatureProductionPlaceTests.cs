@@ -3,7 +3,7 @@ using Xunit;
 namespace eDocLib.Tests;
 
 /// <summary>
-/// Coverage for the <see cref="SignatureProductionPlace"/> record: default null fields, equality, and
+/// Coverage for the <see cref="eDocLib.Metadata.SignatureProductionPlace"/> record: default null fields, equality, and
 /// the canonical "all-null" sentinel that <see cref="eDocLib.Asic.Xades.XadesSignature"/> uses to mean
 /// "no place asserted".
 /// </summary>

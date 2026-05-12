@@ -55,4 +55,10 @@ internal static class SignatureValidatorTrustedList
 
         return new Evaluation(true, null, false, null, null);
     }
+
+    /// <summary>Maps signer TSL rows to qualification indicators when <see cref="Evaluation.Listed"/> is <c>true</c>.</summary>
+    internal static TslQualificationIndicators? SignerQualificationIndicators(SignatureTrustPolicy policy, Evaluation tsl) =>
+        tsl.Listed == true
+            ? TslQualificationMapper.Map(tsl.ServiceTypeIds, tsl.ServiceStatus, policy.ResolveQualificationMappingOptions())
+            : null;
 }

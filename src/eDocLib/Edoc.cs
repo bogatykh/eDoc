@@ -26,7 +26,7 @@ public sealed partial class Edoc : IContainer, IValidatableDocument, IDisposable
         _formatVersion = formatVersion;
     }
 
-    /// <summary>Loads from a seekable ZIP stream (throws <see cref="AsicException"/> / ZIP/XML errors; prefer <see cref="Open(EdocLibConfig, Stream)"/> for <see cref="EdocException"/> mapping).</summary>
+    /// <summary>Loads from a seekable ZIP stream (throws <see cref="AsicException"/> / ZIP/XML errors; prefer <see cref="Open(EdocLibConfig, Stream)"/> for <see cref="eDocLib.Exceptions.EdocException"/> mapping).</summary>
     internal Edoc(Stream stream, string? formatVersion = null, EdocLibConfig? config = null)
         : this(
             new AsicContainer(stream, ResolvePayloadMemoryThreshold(config), ResolvePayloadSpillTempDirectory(config)),
@@ -98,7 +98,10 @@ public sealed partial class Edoc : IContainer, IValidatableDocument, IDisposable
         return _container.TryResolveSignature(signatureId, out signature);
     }
 
-    /// <summary>Declared bundle format version string (informative; serialization remains ASiC-E).</summary>
+    /// <summary>
+    /// Declared bundle format version string (informative; serialization remains ASiC-E).
+    /// Only the library assembly may assign a new value; hosts should treat this as read-only metadata.
+    /// </summary>
     public string FormatVersion
     {
         get
@@ -107,7 +110,7 @@ public sealed partial class Edoc : IContainer, IValidatableDocument, IDisposable
             return _formatVersion;
         }
 
-        set
+        internal set
         {
             ThrowIfDisposed();
             if (string.IsNullOrWhiteSpace(value))
@@ -225,7 +228,7 @@ public sealed partial class Edoc : IContainer, IValidatableDocument, IDisposable
         CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
-        return EdocValidation.ValidateSignaturesAsync(this, trustPolicy, cancellationToken);
+        return EdocContainerSignatureValidator.Default.ValidateSignaturesAsync(this, trustPolicy, cancellationToken);
     }
 
     /// <summary>Saves the container.</summary>

@@ -5,7 +5,9 @@ namespace eDocLib.Configuration;
 
 /// <summary>
 /// Fluent builder for <see cref="EdocLibConfig"/>.
-/// Call <see cref="Build"/> to obtain an immutable snapshot, then use <see cref="Edoc.Open(EdocLibConfig, System.IO.Stream)"/> / <see cref="Edoc.OpenAndValidateAsync(EdocLibConfig, System.IO.Stream, SignatureTrustPolicy?, System.Threading.CancellationToken)"/>.
+/// Call <see cref="Build"/> to obtain an immutable snapshot, then use <see cref="Edoc.Open(EdocLibConfig, System.IO.Stream)"/> /
+/// <see cref="Edoc.OpenAndValidateAsync(EdocLibConfig, System.IO.Stream, System.Net.Http.HttpClient, System.DateTimeOffset?, bool, System.Threading.CancellationToken)"/> or
+/// <see cref="Edoc.OpenAndValidateAsync(EdocLibConfig, System.IO.Stream, SignatureTrustPolicy, System.Threading.CancellationToken)"/>.
 /// </summary>
 public sealed class EdocLibConfigBuilder
 {
